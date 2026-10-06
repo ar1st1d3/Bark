@@ -16,10 +16,11 @@ export const App: React.FC = () => {
   } = useAgentStore();
 
   useEffect(() => {
-    // Listen to Tauri events if available
+    // 1. Listen to Tauri socket & PTY events
     if ((window as any).__TAURI_INTERNALS__) {
       let unlistenEvent: (() => void) | undefined;
       let unlistenPty: (() => void) | undefined;
+      let unlistenDrag: (() => void) | undefined;
 
       import("@tauri-apps/api/event").then(({ listen }) => {
         listen<SocketEventPayload>("bark://event", (ev) => {
@@ -35,12 +36,67 @@ export const App: React.FC = () => {
         });
       });
 
+      // 2. Listen to Tauri native OS drag & drop
+      import("@tauri-apps/api/webview").then(({ getCurrentWebview }) => {
+        getCurrentWebview()
+          .onDragDropEvent((event) => {
+            if (event.payload.type === "drop" && event.payload.paths && event.payload.paths.length > 0) {
+              const fullPath = event.payload.paths[0];
+              const fileName = fullPath.split("/").pop() || fullPath;
+              setAttachedFile({
+                name: fileName,
+                path: fullPath,
+              });
+              setIsExpanded(true);
+              setActiveNav("chat");
+              pugAudio.playBark();
+            }
+          })
+          .then((un) => {
+            unlistenDrag = un;
+          })
+          .catch(console.error);
+      });
+
       return () => {
         unlistenEvent?.();
         unlistenPty?.();
+        unlistenDrag?.();
       };
     }
-  }, [handleSocketEvent, appendOutput]);
+  }, [handleSocketEvent, appendOutput, setAttachedFile, setIsExpanded, setActiveNav]);
+
+  // Global HTML5 Drag & Drop fallback for browser / webview
+  useEffect(() => {
+    const handleWindowDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const handleWindowDrop = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const files = e.dataTransfer?.files;
+      if (files && files.length > 0) {
+        const file = files[0];
+        setAttachedFile({
+          name: file.name,
+          size: file.size,
+        });
+        setIsExpanded(true);
+        setActiveNav("chat");
+        pugAudio.playBark();
+      }
+    };
+
+    window.addEventListener("dragover", handleWindowDragOver);
+    window.addEventListener("drop", handleWindowDrop);
+
+    return () => {
+      window.removeEventListener("dragover", handleWindowDragOver);
+      window.removeEventListener("drop", handleWindowDrop);
+    };
+  }, [setAttachedFile, setIsExpanded, setActiveNav]);
 
   // Global escape key to collapse
   useEffect(() => {
@@ -53,33 +109,8 @@ export const App: React.FC = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isExpanded, setIsExpanded]);
 
-  // Handle Drag & Drop of files onto the notch
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      setAttachedFile({
-        name: file.name,
-        size: file.size,
-      });
-      setIsExpanded(true);
-      setActiveNav("chat");
-      pugAudio.playBark();
-    }
-  };
-
   return (
-    <div
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
-      className="w-full flex flex-col items-center justify-start m-0 p-0 select-none"
-    >
+    <div className="w-full flex flex-col items-center justify-start m-0 p-0 select-none">
       {isExpanded ? <CommandPanel /> : <ClosedNotch />}
     </div>
   );

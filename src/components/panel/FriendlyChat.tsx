@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useAgentStore } from "../../store/useAgentStore";
 import { PugCharacter } from "../mascot/PugCharacter";
-import { ArrowUp, Paperclip, X, MessageSquare } from "lucide-react";
+import { ArrowUp, Paperclip, X } from "lucide-react";
 
 export const FriendlyChat: React.FC = () => {
   const {
@@ -37,8 +37,8 @@ export const FriendlyChat: React.FC = () => {
   return (
     <div className="flex flex-col h-[260px] bg-[#141418] border border-[#24242b] rounded-2xl p-3.5 text-white shadow-inner select-none overflow-hidden justify-between">
       {/* Top Bar: Active Agent Pill Badge (e.g. ● Claude / Antigravity / Hermes) */}
-      <div className="flex items-center justify-between pb-1 border-b border-neutral-800/40">
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-neutral-900/90 border border-neutral-800 text-xs font-semibold">
+      <div className="flex items-center justify-between pb-1.5 border-b border-neutral-800/50">
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-neutral-900 border border-neutral-800 text-xs font-semibold">
           <span
             className="w-2 h-2 rounded-full"
             style={{ backgroundColor: activeModel.color }}
@@ -46,10 +46,11 @@ export const FriendlyChat: React.FC = () => {
           <span className="text-neutral-200">{activeModel.name}</span>
         </div>
 
+        {/* Attached file chip if any */}
         {attachedFile && (
           <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-950/70 border border-blue-500/40 text-blue-300 text-[11px] font-mono">
             <Paperclip size={11} />
-            <span className="truncate max-w-[140px]">{attachedFile.name}</span>
+            <span className="truncate max-w-[160px]">{attachedFile.name}</span>
             <button
               onClick={() => setAttachedFile(null)}
               className="hover:text-white ml-0.5"
@@ -61,28 +62,17 @@ export const FriendlyChat: React.FC = () => {
       </div>
 
       {/* Message History Area */}
-      <div className="flex-1 overflow-y-auto py-2.5 space-y-2.5 pr-1 scroll-smooth">
+      <div className="flex-1 overflow-y-auto py-2 space-y-2.5 pr-1 scroll-smooth">
         {messages.map((msg) => {
           const isUser = msg.sender === "user";
           return (
             <div
               key={msg.id}
-              className={`flex items-end gap-2.5 ${isUser ? "justify-end" : "justify-start"}`}
+              className={`flex items-end ${isUser ? "justify-end" : "justify-start"}`}
             >
-              {/* If Agent: render Pug Mascot avatar with cute purple badge */}
-              {!isUser && (
-                <div className="relative flex-shrink-0 mb-0.5">
-                  <PugCharacter state="idle" size={32} />
-                  {/* Purple bubble badge on the mascot's head matching Coucou */}
-                  <div className="absolute -top-1 -left-1 w-3.5 h-3.5 rounded-full bg-purple-600 flex items-center justify-center shadow-sm">
-                    <MessageSquare size={8} className="text-white" />
-                  </div>
-                </div>
-              )}
-
               {/* Message Bubble */}
               <div
-                className={`max-w-[78%] px-3.5 py-2 text-xs leading-relaxed ${
+                className={`max-w-[78%] px-4 py-2 text-xs leading-relaxed ${
                   isUser
                     ? "bg-neutral-800 text-white rounded-2xl rounded-tr-sm shadow-md font-medium"
                     : "bg-neutral-900/90 text-neutral-200 rounded-2xl rounded-tl-sm border border-neutral-800/80 shadow-sm"
@@ -102,27 +92,37 @@ export const FriendlyChat: React.FC = () => {
 
         {/* Animated thinking dots matching Coucou */}
         {isAgentThinking && (
-          <div className="flex items-end gap-2.5 justify-start">
-            <div className="relative flex-shrink-0 mb-0.5">
-              <PugCharacter state="thinking" size={32} />
-              <div className="absolute -top-1 -left-1 w-3.5 h-3.5 rounded-full bg-purple-600 flex items-center justify-center shadow-sm">
-                <MessageSquare size={8} className="text-white" />
-              </div>
-            </div>
-            <div className="bg-neutral-900/90 border border-neutral-800/80 rounded-2xl rounded-tl-sm px-3.5 py-2 text-xs text-neutral-400 flex items-center gap-1.5 shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 animate-bounce" style={{ animationDelay: "0ms" }} />
-              <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 animate-bounce" style={{ animationDelay: "150ms" }} />
-              <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 animate-bounce" style={{ animationDelay: "300ms" }} />
-            </div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-neutral-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+            <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+            <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 animate-bounce" style={{ animationDelay: "300ms" }} />
           </div>
         )}
 
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Pill Bar matching Coucou ("Continue..." + Circular arrow button) */}
-      <form onSubmit={handleSubmit} className="pt-1">
-        <div className="flex items-center gap-2 bg-[#1b1b22] border border-neutral-800 rounded-full px-3.5 py-1.5 shadow-inner focus-within:border-neutral-600 transition-colors">
+      {/* Bottom Bar: Companion Mascot on Left + Capsule Input on Right (Exactly matching Coucou Image 2) */}
+      <form onSubmit={handleSubmit} className="flex items-center gap-3 pt-1">
+        {/* Companion Mascot with Purple Speech Badge on Top-Left (as in Coucou Image 2) */}
+        <div className="relative flex-shrink-0">
+          <PugCharacter state={isAgentThinking ? "thinking" : "idle"} size={42} />
+
+          {/* Purple speech bubble badge on mascot's ear with 3 dots */}
+          <div
+            className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-purple-600 border border-purple-400/40 flex items-center justify-center shadow-md select-none pointer-events-none"
+            title="Assistant actif"
+          >
+            <div className="flex items-center gap-0.5">
+              <span className="w-0.5 h-0.5 rounded-full bg-white" />
+              <span className="w-0.5 h-0.5 rounded-full bg-white" />
+              <span className="w-0.5 h-0.5 rounded-full bg-white" />
+            </div>
+          </div>
+        </div>
+
+        {/* Full-width Capsule Input */}
+        <div className="flex-1 flex items-center gap-2 bg-[#1c1c22] border border-neutral-800 rounded-full px-4 py-2 shadow-inner focus-within:border-neutral-600 transition-colors">
           <input
             type="text"
             value={inputVal}
