@@ -13,6 +13,8 @@ export const FriendlyChat: React.FC = () => {
     attachedFile,
     setAttachedFile,
     sendChatMessage,
+    settings,
+    setActiveNav,
   } = useAgentStore();
 
   const [inputVal, setInputVal] = useState("");
@@ -34,16 +36,31 @@ export const FriendlyChat: React.FC = () => {
     await sendChatMessage(activeAgent, text);
   };
 
+  const activeModelName =
+    activeAgent === "antigravity"
+      ? settings.antigravity.model
+      : settings.hermes.model.split("/").pop() || settings.hermes.model;
+
   return (
     <div className="flex flex-col h-[260px] bg-[#141418] border border-[#24242b] rounded-2xl p-3.5 text-white shadow-inner select-none overflow-hidden justify-between">
       {/* Top Bar: Active Agent Pill Badge (e.g. ● Claude / Antigravity / Hermes) */}
       <div className="flex items-center justify-between pb-1.5 border-b border-neutral-800/50">
-        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-neutral-900 border border-neutral-800 text-xs font-semibold">
-          <span
-            className="w-2 h-2 rounded-full"
-            style={{ backgroundColor: activeModel.color }}
-          />
-          <span className="text-neutral-200">{activeModel.name}</span>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-neutral-900 border border-neutral-800 text-xs font-semibold">
+            <span
+              className="w-2 h-2 rounded-full"
+              style={{ backgroundColor: activeModel.color }}
+            />
+            <span className="text-neutral-200">{activeModel.name}</span>
+          </div>
+
+          <button
+            onClick={() => setActiveNav("settings")}
+            className="text-[10px] text-neutral-500 hover:text-neutral-300 transition-colors flex items-center gap-1 px-2 py-0.5 rounded bg-neutral-900/50 border border-neutral-800/60"
+            title="Modifier le modèle dans les Paramètres"
+          >
+            <span className="font-mono text-neutral-400">{activeModelName}</span>
+          </button>
         </div>
 
         {/* Attached file chip if any */}

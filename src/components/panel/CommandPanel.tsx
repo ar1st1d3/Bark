@@ -5,7 +5,7 @@ import { AgentCardLeft } from "./AgentCardLeft";
 import { ModelSelectorRight } from "./ModelSelectorRight";
 import { FriendlyChat } from "./FriendlyChat";
 import { CodeDiffViewer } from "./CodeDiffViewer";
-import { CheckCircle } from "lucide-react";
+import { SettingsPanel } from "./settings/SettingsPanel";
 
 export const CommandPanel: React.FC = () => {
   const { activeNav } = useAgentStore();
@@ -36,24 +36,7 @@ export const CommandPanel: React.FC = () => {
         )}
 
         {activeNav === "settings" && (
-          <div className="p-3.5 space-y-2 text-xs text-neutral-300 bg-[#141418] border border-[#24242b] rounded-2xl">
-            <div className="font-bold text-white flex items-center gap-1.5 border-b border-neutral-800 pb-2">
-              <CheckCircle size={14} className="text-emerald-400" />
-              <span>Configuration du Socket & Informations Système</span>
-            </div>
-
-            <div className="text-neutral-400 space-y-1.5 pt-1">
-              <p>
-                Serveur Socket : <code className="text-amber-300 bg-black/60 px-1.5 py-0.5 rounded font-mono">/run/user/1000/bark.sock</code>
-              </p>
-              <p>
-                Moteur d'affichage : <span className="text-white font-semibold">Encoche Supérieure Opaque (X11 / Linux)</span>
-              </p>
-              <p>
-                Raccourci de repli : Touche <kbd className="bg-neutral-800 px-1.5 py-0.5 rounded text-white">Échap</kbd>
-              </p>
-            </div>
-          </div>
+          <SettingsPanel />
         )}
       </div>
     </div>

@@ -4,6 +4,10 @@ import {
   AgentModel,
   AgentSession,
   AgentType,
+  AppSettings,
+  AntigravityConfig,
+  HermesConfig,
+  SecurityConfig,
   ApprovalRequest,
   AttachedFile,
   ChatMessage,
@@ -11,6 +15,13 @@ import {
 } from "../types/agent";
 import { SocketEventPayload } from "../types/socket";
 import { pugAudio } from "../components/mascot/PugAudio";
+import {
+  callGeminiApi,
+  callHermesApi,
+  testAntigravityConnection,
+  testHermesConnection,
+  TestResult,
+} from "../services/aiConnector";
 
 export type NavTab = "home" | "code" | "chat" | "settings" | "add";
 
@@ -28,6 +39,7 @@ interface AgentStoreState {
   isAgentThinking: boolean;
   sessions: Record<AgentType, AgentSession>;
   chatHistories: Record<AgentType, ChatMessage[]>;
+  settings: AppSettings;
 
   // Actions
   setActiveAgent: (agent: AgentType) => void;
@@ -44,6 +56,11 @@ interface AgentStoreState {
   handleSocketEvent: (event: SocketEventPayload) => void;
   appendOutput: (agent: AgentType, text: string) => void;
   clearSession: (agent: AgentType) => void;
+  updateAntigravityConfig: (partial: Partial<AntigravityConfig>) => void;
+  updateHermesConfig: (partial: Partial<HermesConfig>) => void;
+  updateSecurityConfig: (partial: Partial<SecurityConfig>) => void;
+  updateSoundSettings: (soundEnabled: boolean, volume: number) => void;
+  testConnection: (agent: AgentType) => Promise<TestResult>;
 }
 
 const defaultModels: AgentModel[] = [
@@ -168,6 +185,60 @@ const initialSessions: Record<AgentType, AgentSession> = {
   },
 };
 
+const STORAGE_KEY_SETTINGS = "bark_settings_v1";
+
+const defaultSettings: AppSettings = {
+  antigravity: {
+    mode: "gemini_api",
+    cliPath: "agy",
+    apiKey: "",
+    model: "gemini-2.5-flash",
+  },
+  hermes: {
+    mode: "openrouter_api",
+    cliPath: "hermes",
+    apiKey: "",
+    endpoint: "https://openrouter.ai/api/v1",
+    model: "nousresearch/hermes-3-llama-3.1-70b",
+  },
+  security: {
+    autoApproveRead: true,
+    requireApprovalBash: true,
+    requireApprovalWrite: true,
+  },
+  soundEnabled: true,
+  volume: 0.8,
+};
+
+function loadSavedSettings(): AppSettings {
+  try {
+    const raw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY_SETTINGS) : null;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        ...defaultSettings,
+        ...parsed,
+        antigravity: { ...defaultSettings.antigravity, ...parsed.antigravity },
+        hermes: { ...defaultSettings.hermes, ...parsed.hermes },
+        security: { ...defaultSettings.security, ...parsed.security },
+      };
+    }
+  } catch (e) {
+    console.warn("Failed to load settings:", e);
+  }
+  return defaultSettings;
+}
+
+function persistSettings(settings: AppSettings) {
+  try {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settings));
+    }
+  } catch (e) {
+    console.warn("Failed to save settings:", e);
+  }
+}
+
 export const useAgentStore = create<AgentStoreState>((set, get) => ({
   activeAgent: "antigravity",
   selectedModelId: "antigravity",
@@ -182,6 +253,7 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
   isAgentThinking: false,
   sessions: initialSessions,
   chatHistories: initialChat,
+  settings: loadSavedSettings(),
 
   setActiveAgent: (agent) => {
     const matched = get().models.find((m) => m.agentType === agent);
@@ -253,6 +325,7 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
 
   sendChatMessage: async (agent, text) => {
     const file = get().attachedFile;
+    const settings = get().settings;
     const userMsg: ChatMessage = {
       id: `usr-${Date.now()}`,
       sender: "user",
@@ -270,25 +343,85 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
       },
     }));
 
-    // Trigger PTY or simulation
-    if ((window as any).__TAURI_INTERNALS__) {
-      try {
-        const { invoke } = await import("@tauri-apps/api/core");
-        const cmd = agent === "antigravity" ? "agy" : "hermes";
-        await invoke("spawn_agent_pty", {
-          sessionId: get().sessions[agent].id,
-          command: cmd,
-          args: ["--prompt", text],
-          cwd: null,
-          cols: 80,
-          rows: 24,
-        });
-      } catch (e) {
-        console.error("PTY spawn error:", e);
+    try {
+      if (agent === "antigravity") {
+        const agConfig = settings.antigravity;
+        if (agConfig.mode === "gemini_api" && agConfig.apiKey?.trim()) {
+          const aiResponse = await callGeminiApi(text, agConfig);
+          set((state) => ({
+            isAgentThinking: false,
+            chatHistories: {
+              ...state.chatHistories,
+              antigravity: [
+                ...state.chatHistories.antigravity,
+                {
+                  id: `bot-${Date.now()}`,
+                  sender: "agent",
+                  text: aiResponse,
+                  timestamp: Date.now(),
+                },
+              ],
+            },
+          }));
+          pugAudio.playChime();
+          return;
+        } else if (agConfig.mode === "cli_pty" && (window as any).__TAURI_INTERNALS__) {
+          const { invoke } = await import("@tauri-apps/api/core");
+          await invoke("spawn_agent_pty", {
+            sessionId: get().sessions.antigravity.id,
+            command: agConfig.cliPath || "agy",
+            args: ["--prompt", text],
+            cwd: null,
+            cols: 80,
+            rows: 24,
+          });
+          return;
+        }
+      } else if (agent === "hermes") {
+        const hermesConfig = settings.hermes;
+        if (
+          (hermesConfig.mode === "openrouter_api" && hermesConfig.apiKey?.trim()) ||
+          hermesConfig.mode === "local_ollama"
+        ) {
+          const aiResponse = await callHermesApi(text, hermesConfig);
+          set((state) => ({
+            isAgentThinking: false,
+            chatHistories: {
+              ...state.chatHistories,
+              hermes: [
+                ...state.chatHistories.hermes,
+                {
+                  id: `bot-${Date.now()}`,
+                  sender: "agent",
+                  text: aiResponse,
+                  timestamp: Date.now(),
+                },
+              ],
+            },
+          }));
+          pugAudio.playChime();
+          return;
+        } else if (hermesConfig.mode === "cli_pty" && (window as any).__TAURI_INTERNALS__) {
+          const { invoke } = await import("@tauri-apps/api/core");
+          await invoke("spawn_agent_pty", {
+            sessionId: get().sessions.hermes.id,
+            command: hermesConfig.cliPath || "hermes",
+            args: ["--prompt", text],
+            cwd: null,
+            cols: 80,
+            rows: 24,
+          });
+          return;
+        }
       }
-    } else {
-      // Browser simulation
+
+      // Fallback message if no API key is provided
       setTimeout(() => {
+        const helperText =
+          agent === "antigravity"
+            ? `[Google Antigravity] Message bien reçu. Pour dialoguer en direct avec l'API Gemini (${settings.antigravity.model}), saisissez votre clé API Google dans les Paramètres ⚙️, ou connectez votre session via le socket IPC.`
+            : `[Hermes Agent] Message bien reçu. Pour dialoguer en direct avec Hermes 3 (${settings.hermes.model}), configurez votre clé OpenRouter ou votre endpoint Ollama dans les Paramètres ⚙️.`;
+
         set((state) => ({
           isAgentThinking: false,
           chatHistories: {
@@ -298,17 +431,33 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
               {
                 id: `bot-${Date.now()}`,
                 sender: "agent",
-                text:
-                  agent === "antigravity"
-                    ? `J'analyse votre demande pour "${text}". Fichiers examinés avec succès.`
-                    : `Hermes a pris en compte : "${text}". Traitement autonome en cours.`,
+                text: helperText,
                 timestamp: Date.now(),
               },
             ],
           },
         }));
         pugAudio.playChime();
-      }, 1200);
+      }, 700);
+    } catch (err: any) {
+      set((state) => ({
+        isAgentThinking: false,
+        chatHistories: {
+          ...state.chatHistories,
+          [agent]: [
+            ...state.chatHistories[agent],
+            {
+              id: `err-${Date.now()}`,
+              sender: "agent",
+              text: `⚠️ Erreur avec ${
+                agent === "antigravity" ? "Google Gemini" : "Hermes"
+              } : ${err?.message || String(err)}`,
+              timestamp: Date.now(),
+            },
+          ],
+        },
+      }));
+      pugAudio.playAlert();
     }
   },
 
@@ -582,5 +731,52 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
         },
       },
     }));
+  },
+
+  updateAntigravityConfig: (partial) => {
+    const updated = {
+      ...get().settings,
+      antigravity: { ...get().settings.antigravity, ...partial },
+    };
+    persistSettings(updated);
+    set({ settings: updated });
+  },
+
+  updateHermesConfig: (partial) => {
+    const updated = {
+      ...get().settings,
+      hermes: { ...get().settings.hermes, ...partial },
+    };
+    persistSettings(updated);
+    set({ settings: updated });
+  },
+
+  updateSecurityConfig: (partial) => {
+    const updated = {
+      ...get().settings,
+      security: { ...get().settings.security, ...partial },
+    };
+    persistSettings(updated);
+    set({ settings: updated });
+  },
+
+  updateSoundSettings: (soundEnabled, volume) => {
+    pugAudio.enabled = soundEnabled;
+    const updated = {
+      ...get().settings,
+      soundEnabled,
+      volume,
+    };
+    persistSettings(updated);
+    set({ settings: updated, isMuted: !soundEnabled });
+  },
+
+  testConnection: async (agent) => {
+    const s = get().settings;
+    if (agent === "antigravity") {
+      return await testAntigravityConnection(s.antigravity);
+    } else {
+      return await testHermesConnection(s.hermes);
+    }
   },
 }));

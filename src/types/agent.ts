@@ -74,3 +74,32 @@ export interface AgentSession {
   outputLines: string[];
   recentActivities: ActivityItem[];
 }
+
+export interface AntigravityConfig {
+  mode: "socket_hook" | "cli_pty" | "gemini_api";
+  cliPath: string;
+  apiKey: string;
+  model: string;
+}
+
+export interface HermesConfig {
+  mode: "openrouter_api" | "cli_pty" | "local_ollama";
+  cliPath: string;
+  apiKey: string;
+  endpoint: string;
+  model: string;
+}
+
+export interface SecurityConfig {
+  autoApproveRead: boolean;
+  requireApprovalBash: boolean;
+  requireApprovalWrite: boolean;
+}
+
+export interface AppSettings {
+  antigravity: AntigravityConfig;
+  hermes: HermesConfig;
+  security: SecurityConfig;
+  soundEnabled: boolean;
+  volume: number;
+}
