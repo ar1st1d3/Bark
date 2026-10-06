@@ -5,7 +5,7 @@ import { AgentCardLeft } from "./AgentCardLeft";
 import { ModelSelectorRight } from "./ModelSelectorRight";
 import { AddModelModal } from "./AddModelModal";
 import { AgentTerminal } from "../terminal/AgentTerminal";
-import { Send, Terminal as TerminalIcon, CheckCircle } from "lucide-react";
+import { Send, CheckCircle } from "lucide-react";
 
 export const CommandPanel: React.FC = () => {
   const {

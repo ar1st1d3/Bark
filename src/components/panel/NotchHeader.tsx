@@ -1,5 +1,5 @@
 import React from "react";
-import { useAgentStore, NavTab } from "../../store/useAgentStore";
+import { useAgentStore } from "../../store/useAgentStore";
 import { Home, MessageSquare, Plus, Settings, Volume2, VolumeX } from "lucide-react";
 
 export const NotchHeader: React.FC = () => {
