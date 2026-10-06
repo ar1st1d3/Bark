@@ -1,0 +1,53 @@
+{
+  "bark-companion": {
+    "enabled": true,
+    "PreToolUse": [
+      {
+        "matcher": "run_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/aristide/Desktop/dev/Bark/integrations/antigravity/bark-hook.py PreToolUse run_command",
+            "timeout": 120
+          }
+        ]
+      },
+      {
+        "matcher": "write_to_file",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/aristide/Desktop/dev/Bark/integrations/antigravity/bark-hook.py PreToolUse write_to_file",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/aristide/Desktop/dev/Bark/integrations/antigravity/bark-hook.py PostToolUse",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "python3 /home/aristide/Desktop/dev/Bark/integrations/antigravity/bark-hook.py PreInvocation",
+        "timeout": 10
+      }
+    ],
+    "PostInvocation": [
+      {
+        "type": "command",
+        "command": "python3 /home/aristide/Desktop/dev/Bark/integrations/antigravity/bark-hook.py PostInvocation",
+        "timeout": 10
+      }
+    ]
+  }
+}
