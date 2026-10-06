@@ -80,6 +80,9 @@ export interface AntigravityConfig {
   cliPath: string;
   apiKey: string;
   model: string;
+  autoFallback?: boolean;
+  fallbackModel?: string;
+  detectedModels?: Array<{ id: string; displayName: string }>;
 }
 
 export interface HermesConfig {

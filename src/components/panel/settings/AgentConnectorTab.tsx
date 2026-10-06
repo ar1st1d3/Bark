@@ -12,8 +12,13 @@ import {
   Radio,
   Server,
   Key,
+  RefreshCw,
+  Zap,
 } from "lucide-react";
-import { TestResult } from "../../../services/aiConnector";
+import {
+  TestResult,
+  fetchAvailableGeminiModels,
+} from "../../../services/aiConnector";
 
 export const AgentConnectorTab: React.FC = () => {
   const {
@@ -29,8 +34,45 @@ export const AgentConnectorTab: React.FC = () => {
   const [testingAg, setTestingAg] = useState(false);
   const [agResult, setAgResult] = useState<TestResult | null>(null);
 
+  const [detectingModels, setDetectingModels] = useState(false);
+  const [detectMsg, setDetectMsg] = useState<{ success: boolean; text: string } | null>(null);
+
   const [testingHermes, setTestingHermes] = useState(false);
   const [hermesResult, setHermesResult] = useState<TestResult | null>(null);
+
+  const handleDetectModels = async () => {
+    if (!settings.antigravity.apiKey.trim()) {
+      setDetectMsg({
+        success: false,
+        text: "Saisissez votre clé API Google Gemini d'abord.",
+      });
+      return;
+    }
+    setDetectingModels(true);
+    setDetectMsg(null);
+    try {
+      const models = await fetchAvailableGeminiModels(settings.antigravity.apiKey);
+      updateAntigravityConfig({ detectedModels: models });
+      if (models.length > 0) {
+        setDetectMsg({
+          success: true,
+          text: `${models.length} modèles détectés et synchronisés !`,
+        });
+      } else {
+        setDetectMsg({
+          success: false,
+          text: "Aucun modèle avec generateContent trouvé.",
+        });
+      }
+    } catch (e: any) {
+      setDetectMsg({
+        success: false,
+        text: e.message || "Erreur de détection",
+      });
+    } finally {
+      setDetectingModels(false);
+    }
+  };
 
   const handleTestAntigravity = async () => {
     setTestingAg(true);
@@ -58,6 +100,19 @@ export const AgentConnectorTab: React.FC = () => {
     }
   };
 
+  const knownAgModels = [
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
+    "gemini-1.5-flash",
+    "gemini-1.5-pro",
+    "gemini-3.8-flash",
+    "gemini-3.8-pro",
+    "gemini-3-flash",
+    "gemini-3-pro",
+    "gemini-2.0-flash",
+    ...(settings.antigravity.detectedModels?.map((m) => m.id) || []),
+  ];
+
   return (
     <div className="grid grid-cols-2 gap-3 h-[375px] overflow-y-auto pr-1 select-none">
       {/* --- Antigravity Card --- */}
@@ -71,7 +126,7 @@ export const AgentConnectorTab: React.FC = () => {
               </div>
               <div>
                 <div className="text-xs font-bold leading-tight">Google Antigravity</div>
-                <div className="text-[10px] text-neutral-400">Google DeepMind • Gemini 3.8</div>
+                <div className="text-[10px] text-neutral-400">Google DeepMind • Gemini</div>
               </div>
             </div>
 
@@ -124,20 +179,32 @@ export const AgentConnectorTab: React.FC = () => {
 
           {/* Specific Inputs based on Mode */}
           {settings.antigravity.mode === "gemini_api" && (
-            <div className="space-y-2 pt-1">
+            <div className="space-y-2 pt-0.5">
               <div>
                 <div className="flex items-center justify-between text-[10px] text-neutral-400 mb-0.5">
                   <span className="flex items-center gap-1">
                     <Key size={10} /> Clé API Google Gemini
                   </span>
-                  <a
-                    href="https://aistudio.google.com/app/apikey"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-blue-400 hover:underline flex items-center gap-0.5 text-[9px]"
-                  >
-                    Obtenir une clé <ExternalLink size={8} />
-                  </a>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleDetectModels}
+                      disabled={detectingModels || !settings.antigravity.apiKey.trim()}
+                      className="text-blue-400 hover:text-blue-300 disabled:opacity-40 flex items-center gap-1 text-[9px] font-medium"
+                      title="Interroger Google API pour lister les modèles autorisés"
+                    >
+                      <RefreshCw size={9} className={detectingModels ? "animate-spin" : ""} />
+                      <span>{detectingModels ? "Détection..." : "Détecter modèles"}</span>
+                    </button>
+                    <a
+                      href="https://aistudio.google.com/app/apikey"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-neutral-400 hover:text-neutral-200 flex items-center gap-0.5 text-[9px]"
+                    >
+                      Clé <ExternalLink size={8} />
+                    </a>
+                  </div>
                 </div>
                 <div className="relative">
                   <input
@@ -147,7 +214,7 @@ export const AgentConnectorTab: React.FC = () => {
                       updateAntigravityConfig({ apiKey: e.target.value })
                     }
                     placeholder="AIzaSy..."
-                    className="w-full bg-black/70 border border-neutral-800 rounded px-2.5 py-1.5 text-xs font-mono text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-blue-500 pr-7"
+                    className="w-full bg-black/70 border border-neutral-800 rounded px-2.5 py-1 text-xs font-mono text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-blue-500 pr-7"
                   />
                   <button
                     type="button"
@@ -157,82 +224,118 @@ export const AgentConnectorTab: React.FC = () => {
                     {showGeminiKey ? <EyeOff size={12} /> : <Eye size={12} />}
                   </button>
                 </div>
+
+                {detectMsg && (
+                  <div
+                    className={`text-[9px] mt-1 flex items-center gap-1 ${
+                      detectMsg.success ? "text-emerald-400" : "text-amber-400"
+                    }`}
+                  >
+                    {detectMsg.success ? <CheckCircle size={10} /> : <AlertCircle size={10} />}
+                    <span>{detectMsg.text}</span>
+                  </div>
+                )}
               </div>
 
               <div>
-                <label className="block text-[10px] text-neutral-400 mb-0.5">
-                  Modèle Gemini (Google Antigravity)
-                </label>
+                <div className="flex items-center justify-between text-[10px] text-neutral-400 mb-0.5">
+                  <span>Modèle Gemini (Google Antigravity)</span>
+                </div>
                 <select
-                  value={
-                    [
-                      "gemini-3.8-flash",
-                      "gemini-3.8-pro",
-                      "gemini-3-flash",
-                      "gemini-3-pro",
-                      "gemini-2.5-flash",
-                      "gemini-2.5-pro",
-                      "gemini-2.0-flash",
-                    ].includes(settings.antigravity.model)
-                      ? settings.antigravity.model
-                      : "custom"
-                  }
+                  value={knownAgModels.includes(settings.antigravity.model) ? settings.antigravity.model : "custom"}
                   onChange={(e) => {
                     const val = e.target.value;
                     if (val !== "custom") {
                       updateAntigravityConfig({ model: val });
                     }
                   }}
-                  className="w-full bg-black/70 border border-neutral-800 rounded px-2.5 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-black/70 border border-neutral-800 rounded px-2 py-1 text-xs text-neutral-200 focus:outline-none focus:border-blue-500"
                 >
-                  <option value="gemini-3.8-flash">
-                    ✨ Gemini 3.8 Flash (Dernier modèle Antigravity - Recommandé)
-                  </option>
-                  <option value="gemini-3.8-pro">
-                    🧠 Gemini 3.8 Pro (Raisonnement maximal & Code)
-                  </option>
-                  <option value="gemini-3-flash">
-                    ⚡ Gemini 3 Flash (Nouvelle génération)
-                  </option>
-                  <option value="gemini-3-pro">
-                    🎯 Gemini 3 Pro
-                  </option>
-                  <option value="gemini-2.5-flash">
-                    Gemini 2.5 Flash
-                  </option>
-                  <option value="gemini-2.5-pro">
-                    Gemini 2.5 Pro
-                  </option>
-                  <option value="gemini-2.0-flash">
-                    Gemini 2.0 Flash
-                  </option>
+                  <optgroup label="⚡ Modèles stables & recommandés (Aucune surcharge)">
+                    <option value="gemini-2.5-flash">
+                      ⚡ Gemini 2.5 Flash (Recommandé • Ultra-rapide & Stable)
+                    </option>
+                    <option value="gemini-2.5-pro">
+                      🧠 Gemini 2.5 Pro (Raisonnement profond & Code)
+                    </option>
+                    <option value="gemini-1.5-flash">
+                      🚀 Gemini 1.5 Flash (Quota gratuit élevé)
+                    </option>
+                    <option value="gemini-1.5-pro">
+                      📚 Gemini 1.5 Pro (Grand contexte 2M)
+                    </option>
+                  </optgroup>
+
+                  <optgroup label="✨ Modèles Antigravity (Sujets à forte demande Google)">
+                    <option value="gemini-3.8-flash">
+                      ✨ Gemini 3.8 Flash (Antigravity • Forte demande possible)
+                    </option>
+                    <option value="gemini-3.8-pro">
+                      🔬 Gemini 3.8 Pro (Aperçu)
+                    </option>
+                    <option value="gemini-3-flash">
+                      ⚡ Gemini 3 Flash
+                    </option>
+                    <option value="gemini-3-pro">
+                      🎯 Gemini 3 Pro
+                    </option>
+                    <option value="gemini-2.0-flash">
+                      Gemini 2.0 Flash
+                    </option>
+                  </optgroup>
+
+                  {settings.antigravity.detectedModels && settings.antigravity.detectedModels.length > 0 && (
+                    <optgroup label="🔍 Modèles détectés pour votre compte">
+                      {settings.antigravity.detectedModels.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.displayName}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+
                   <option value="custom">
                     ✏️ Autre identifiant de modèle personnalisé...
                   </option>
                 </select>
 
                 {/* Custom Model Input if chosen */}
-                {!([
-                  "gemini-3.8-flash",
-                  "gemini-3.8-pro",
-                  "gemini-3-flash",
-                  "gemini-3-pro",
-                  "gemini-2.5-flash",
-                  "gemini-2.5-pro",
-                  "gemini-2.0-flash",
-                ].includes(settings.antigravity.model)) && (
-                  <div className="mt-1.5">
+                {!knownAgModels.includes(settings.antigravity.model) && (
+                  <div className="mt-1">
                     <input
                       type="text"
                       value={settings.antigravity.model}
                       onChange={(e) =>
                         updateAntigravityConfig({ model: e.target.value })
                       }
-                      placeholder="Nom du modèle (ex: gemini-3.8-flash-thinking)"
-                      className="w-full bg-black/70 border border-blue-500/60 rounded px-2.5 py-1 text-xs font-mono text-blue-200 focus:outline-none"
+                      placeholder="Nom exact du modèle (ex: gemini-2.5-flash-lite)"
+                      className="w-full bg-black/70 border border-blue-500/60 rounded px-2 py-0.5 text-xs font-mono text-blue-200 focus:outline-none"
                     />
                   </div>
                 )}
+              </div>
+
+              {/* Repli automatique Toggle */}
+              <div className="flex items-start justify-between gap-2 p-1.5 rounded-lg bg-neutral-900/60 border border-neutral-800/80">
+                <div className="flex items-start gap-1.5">
+                  <Zap size={11} className="text-amber-400 mt-0.5 flex-shrink-0" />
+                  <div className="text-[10px] leading-tight">
+                    <span className="font-semibold text-neutral-200">
+                      Repli automatique anti-surcharge
+                    </span>
+                    <p className="text-[9px] text-neutral-400 mt-0.5 leading-snug">
+                      Si Google renvoie une erreur « 503 High Demand » sur votre modèle, Bark bascule automatiquement sur Gemini 2.5 Flash pour assurer la continuité.
+                    </p>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={settings.antigravity.autoFallback !== false}
+                  onChange={(e) =>
+                    updateAntigravityConfig({ autoFallback: e.target.checked })
+                  }
+                  className="mt-0.5 h-3.5 w-3.5 rounded border-neutral-700 text-blue-600 focus:ring-0 cursor-pointer accent-blue-600"
+                />
               </div>
             </div>
           )}

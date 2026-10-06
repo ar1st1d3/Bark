@@ -192,7 +192,9 @@ const defaultSettings: AppSettings = {
     mode: "gemini_api",
     cliPath: "agy",
     apiKey: "",
-    model: "gemini-3.8-flash",
+    model: "gemini-2.5-flash",
+    autoFallback: true,
+    fallbackModel: "gemini-2.5-flash",
   },
   hermes: {
     mode: "openrouter_api",
@@ -218,7 +220,12 @@ function loadSavedSettings(): AppSettings {
       return {
         ...defaultSettings,
         ...parsed,
-        antigravity: { ...defaultSettings.antigravity, ...parsed.antigravity },
+        antigravity: {
+          ...defaultSettings.antigravity,
+          ...parsed.antigravity,
+          autoFallback: parsed.antigravity?.autoFallback ?? true,
+          fallbackModel: parsed.antigravity?.fallbackModel || "gemini-2.5-flash",
+        },
         hermes: { ...defaultSettings.hermes, ...parsed.hermes },
         security: { ...defaultSettings.security, ...parsed.security },
       };

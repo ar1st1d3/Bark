@@ -23,7 +23,7 @@ export async function testAntigravityConnection(
     }
 
     try {
-      const model = config.model || "gemini-3.8-flash";
+      const model = config.model || "gemini-2.5-flash";
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}?key=${encodeURIComponent(
         config.apiKey.trim()
       )}`;
@@ -32,11 +32,18 @@ export async function testAntigravityConnection(
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
+        const rawMsg = errorData?.error?.message || `Erreur HTTP ${res.status}`;
+        
+        if (res.status === 404 || rawMsg.toLowerCase().includes("not found")) {
+          return {
+            success: false,
+            message: `Modèle « ${model} » non supporté par l'API pour cette clé (404). Utilisez « Détecter les modèles » ou choisissez gemini-2.5-flash.`,
+          };
+        }
+        
         return {
           success: false,
-          message:
-            errorData?.error?.message ||
-            `Erreur HTTP ${res.status}: Vérifiez votre clé API Google Gemini.`,
+          message: rawMsg,
         };
       }
 
@@ -161,48 +168,160 @@ export async function testHermesConnection(
   };
 }
 
+export interface DiscoveredModel {
+  id: string;
+  displayName: string;
+  description?: string;
+}
+
 /**
- * Execute query via Google Gemini API
+ * Fetch list of models actually supported and enabled for this API key
+ */
+export async function fetchAvailableGeminiModels(
+  apiKey: string
+): Promise<DiscoveredModel[]> {
+  if (!apiKey?.trim()) {
+    throw new Error("Veuillez d'abord renseigner une clé API Google Gemini.");
+  }
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(
+    apiKey.trim()
+  )}`;
+
+  const res = await fetch(url);
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(
+      errorData?.error?.message ||
+        `Erreur HTTP ${res.status}: Impossible de récupérer les modèles autorisés.`
+    );
+  }
+
+  const data = await res.json();
+  const rawList: any[] = data.models || [];
+
+  // Keep only models supporting generateContent
+  const generateModels = rawList.filter(
+    (m) =>
+      Array.isArray(m.supportedGenerationMethods) &&
+      m.supportedGenerationMethods.includes("generateContent")
+  );
+
+  return generateModels.map((m) => {
+    const id = (m.name || "").replace(/^models\//, "");
+    return {
+      id,
+      displayName: m.displayName || id,
+      description: m.description,
+    };
+  });
+}
+
+/**
+ * Execute query via Google Gemini API with smart fallback for saturated / unsupported models
  */
 export async function callGeminiApi(
   prompt: string,
   config: AntigravityConfig
 ): Promise<string> {
-  const model = config.model || "gemini-3.8-flash";
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(
-    config.apiKey.trim()
-  )}`;
+  const primaryModel = config.model || "gemini-2.5-flash";
+  const shouldFallback = config.autoFallback !== false;
 
-  const body = {
-    contents: [
-      {
-        parts: [{ text: prompt }],
-      },
-    ],
-    generationConfig: {
-      temperature: 0.7,
-      maxOutputTokens: 2048,
-    },
-  };
+  const candidateModels = shouldFallback
+    ? [
+        primaryModel,
+        config.fallbackModel || "gemini-2.5-flash",
+        "gemini-1.5-flash",
+        "gemini-2.5-pro",
+      ].filter((m, idx, self) => Boolean(m) && self.indexOf(m) === idx)
+    : [primaryModel];
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  let lastError: any = null;
 
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    throw new Error(
-      errData?.error?.message || `Erreur API Gemini (${res.status})`
-    );
+  for (let i = 0; i < candidateModels.length; i++) {
+    const currentModel = candidateModels[i];
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${encodeURIComponent(
+        config.apiKey.trim()
+      )}`;
+
+      const body = {
+        contents: [
+          {
+            parts: [{ text: prompt }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2048,
+        },
+      };
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        const rawMsg = errData?.error?.message || `Erreur API Gemini (${res.status})`;
+        const lower = rawMsg.toLowerCase();
+
+        const isOverloadedOrUnavailable =
+          res.status === 503 ||
+          res.status === 429 ||
+          res.status === 404 ||
+          lower.includes("high demand") ||
+          lower.includes("overloaded") ||
+          lower.includes("spikes in demand") ||
+          lower.includes("resource_exhausted") ||
+          lower.includes("not found");
+
+        if (isOverloadedOrUnavailable && i < candidateModels.length - 1) {
+          console.warn(
+            `[Bark Gemini Connector] Le modèle « ${currentModel} » est saturé ou non supporté (${rawMsg}). Bascule sur « ${candidateModels[i + 1]} »...`
+          );
+          lastError = new Error(rawMsg);
+          continue; // Try next fallback model
+        }
+
+        // Final candidate failed or non-recoverable error
+        if (lower.includes("high demand") || res.status === 503) {
+          throw new Error(
+            `Le modèle « ${currentModel} » subit une forte demande chez Google (503 High Demand). Choisissez « Gemini 2.5 Flash » dans les Paramètres ⚙️ ou réessayez dans quelques instants.`
+          );
+        }
+        if (res.status === 404 || lower.includes("not found")) {
+          throw new Error(
+            `Le modèle « ${currentModel} » n'est pas pris en compte avec cette clé API (404). Cliquez sur « Détecter les modèles » dans les Paramètres ⚙️ ou sélectionnez « gemini-2.5-flash ».`
+          );
+        }
+
+        throw new Error(rawMsg);
+      }
+
+      const data = await res.json();
+      const text =
+        data.candidates?.[0]?.content?.parts?.[0]?.text ||
+        "Aucune réponse textuelle reçue de Gemini.";
+
+      // If fallback was activated, inform user gently
+      if (i > 0) {
+        return `> ⚡ **Note de continuité Bark** : Le modèle initial (\`${primaryModel}\`) est actuellement saturé sur les serveurs Google. Bark a automatiquement généré votre réponse avec \`${currentModel}\`.\n\n${text}`;
+      }
+
+      return text;
+    } catch (err: any) {
+      lastError = err;
+      if (shouldFallback && i < candidateModels.length - 1) {
+        continue;
+      }
+      throw err;
+    }
   }
 
-  const data = await res.json();
-  const text =
-    data.candidates?.[0]?.content?.parts?.[0]?.text ||
-    "Aucune réponse textuelle reçue de Gemini.";
-  return text;
+  throw lastError || new Error("Échec de communication avec Google Gemini.");
 }
 
 /**
