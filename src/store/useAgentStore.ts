@@ -5,6 +5,8 @@ import {
   AgentSession,
   AgentType,
   ApprovalRequest,
+  AttachedFile,
+  ChatMessage,
   UserQuestion,
 } from "../types/agent";
 import { SocketEventPayload } from "../types/socket";
@@ -22,7 +24,10 @@ interface AgentStoreState {
   socketConnected: boolean;
   pendingApproval: ApprovalRequest | null;
   pendingQuestion: UserQuestion | null;
+  attachedFile: AttachedFile | null;
+  isAgentThinking: boolean;
   sessions: Record<AgentType, AgentSession>;
+  chatHistories: Record<AgentType, ChatMessage[]>;
 
   // Actions
   setActiveAgent: (agent: AgentType) => void;
@@ -33,6 +38,8 @@ interface AgentStoreState {
   toggleExpanded: () => void;
   toggleMute: () => void;
   setSocketConnected: (connected: boolean) => void;
+  setAttachedFile: (file: AttachedFile | null) => void;
+  sendChatMessage: (agent: AgentType, text: string) => Promise<void>;
   submitApproval: (requestId: string, status: "approved" | "denied" | "always", choice?: any) => Promise<void>;
   handleSocketEvent: (event: SocketEventPayload) => void;
   appendOutput: (agent: AgentType, text: string) => void;
@@ -46,7 +53,7 @@ const defaultModels: AgentModel[] = [
     subtitle: "Google DeepMind",
     category: "agent",
     color: "#3b82f6",
-    mascotColor: "#3b82f6", // Blue
+    mascotColor: "#3b82f6",
     agentType: "antigravity",
   },
   {
@@ -55,7 +62,7 @@ const defaultModels: AgentModel[] = [
     subtitle: "Nous Research",
     category: "agent",
     color: "#f59e0b",
-    mascotColor: "#f59e0b", // Warm Amber
+    mascotColor: "#f59e0b",
     agentType: "hermes",
   },
   {
@@ -64,7 +71,7 @@ const defaultModels: AgentModel[] = [
     subtitle: "IDE Bridge",
     category: "tool",
     color: "#ffffff",
-    mascotColor: "#f3f4f6", // White/Silver
+    mascotColor: "#f3f4f6",
     agentType: "antigravity",
   },
   {
@@ -73,7 +80,7 @@ const defaultModels: AgentModel[] = [
     subtitle: "PR & Actions",
     category: "tool",
     color: "#ef4444",
-    mascotColor: "#ef4444", // Red
+    mascotColor: "#ef4444",
     agentType: "antigravity",
   },
   {
@@ -82,7 +89,7 @@ const defaultModels: AgentModel[] = [
     subtitle: "Workflows",
     category: "tool",
     color: "#f97316",
-    mascotColor: "#f97316", // Orange
+    mascotColor: "#f97316",
     agentType: "hermes",
   },
   {
@@ -91,7 +98,7 @@ const defaultModels: AgentModel[] = [
     subtitle: "Deployments",
     category: "tool",
     color: "#8b5cf6",
-    mascotColor: "#8b5cf6", // Purple
+    mascotColor: "#8b5cf6",
     agentType: "antigravity",
   },
 ];
@@ -116,6 +123,25 @@ const initialActivities: ActivityItem[] = [
     type: "info",
   },
 ];
+
+const initialChat: Record<AgentType, ChatMessage[]> = {
+  antigravity: [
+    {
+      id: "ag-welcome",
+      sender: "agent",
+      text: "Bonjour ! Je suis Google Antigravity. Prêt à inspecter et transformer votre code.",
+      timestamp: Date.now() - 60000,
+    },
+  ],
+  hermes: [
+    {
+      id: "he-welcome",
+      sender: "agent",
+      text: "Salut ! Hermes Agent est connecté. Comment puis-je vous aider aujourd'hui ?",
+      timestamp: Date.now() - 60000,
+    },
+  ],
+};
 
 const initialSessions: Record<AgentType, AgentSession> = {
   antigravity: {
@@ -152,7 +178,10 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
   socketConnected: true,
   pendingApproval: null,
   pendingQuestion: null,
+  attachedFile: null,
+  isAgentThinking: false,
   sessions: initialSessions,
+  chatHistories: initialChat,
 
   setActiveAgent: (agent) => {
     const matched = get().models.find((m) => m.agentType === agent);
@@ -185,7 +214,6 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
 
   setActiveNav: (nav) => {
     set({ activeNav: nav });
-    // Adjust window height if opening chat
     if ((window as any).__TAURI_INTERNALS__) {
       import("@tauri-apps/api/core").then(({ invoke }) => {
         invoke("set_window_mode", {
@@ -221,6 +249,69 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
 
   setSocketConnected: (connected) => set({ socketConnected: connected }),
 
+  setAttachedFile: (file) => set({ attachedFile: file }),
+
+  sendChatMessage: async (agent, text) => {
+    const file = get().attachedFile;
+    const userMsg: ChatMessage = {
+      id: `usr-${Date.now()}`,
+      sender: "user",
+      text,
+      attachment: file ? file.name : undefined,
+      timestamp: Date.now(),
+    };
+
+    set((state) => ({
+      attachedFile: null,
+      isAgentThinking: true,
+      chatHistories: {
+        ...state.chatHistories,
+        [agent]: [...state.chatHistories[agent], userMsg],
+      },
+    }));
+
+    // Trigger PTY or simulation
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        const cmd = agent === "antigravity" ? "agy" : "hermes";
+        await invoke("spawn_agent_pty", {
+          sessionId: get().sessions[agent].id,
+          command: cmd,
+          args: ["--prompt", text],
+          cwd: null,
+          cols: 80,
+          rows: 24,
+        });
+      } catch (e) {
+        console.error("PTY spawn error:", e);
+      }
+    } else {
+      // Browser simulation
+      setTimeout(() => {
+        set((state) => ({
+          isAgentThinking: false,
+          chatHistories: {
+            ...state.chatHistories,
+            [agent]: [
+              ...state.chatHistories[agent],
+              {
+                id: `bot-${Date.now()}`,
+                sender: "agent",
+                text:
+                  agent === "antigravity"
+                    ? `J'analyse votre demande pour "${text}". Fichiers examinés avec succès.`
+                    : `Hermes a pris en compte : "${text}". Traitement autonome en cours.`,
+                timestamp: Date.now(),
+              },
+            ],
+          },
+        }));
+        pugAudio.playChime();
+      }, 1200);
+    }
+  },
+
   submitApproval: async (requestId, status, choice) => {
     try {
       if ((window as any).__TAURI_INTERNALS__) {
@@ -242,7 +333,7 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
       const s = state.sessions[currentAgent];
       const newAct: ActivityItem = {
         id: `act-${Date.now()}`,
-        text: status === "approved" ? "Action autorisée par l'utilisateur" : "Action refusée",
+        text: status === "approved" ? "Action autorisée" : "Action refusée",
         timeAgo: "now",
         type: status === "approved" ? "info" : "alert",
       };
@@ -275,6 +366,7 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
         };
         set((state) => ({
           activeAgent: agentKey,
+          isAgentThinking: false,
           sessions: {
             ...state.sessions,
             [agentKey]: {
@@ -423,6 +515,7 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
         set((state) => {
           const s = state.sessions[agentKey];
           return {
+            isAgentThinking: false,
             sessions: {
               ...state.sessions,
               [agentKey]: {

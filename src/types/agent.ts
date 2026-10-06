@@ -7,8 +7,8 @@ export interface AgentModel {
   name: string;
   subtitle: string;
   category: "agent" | "model" | "tool";
-  color: string; // Hex color for badge/glow
-  mascotColor: string; // Color for the mini squircle mascot in the pill
+  color: string;
+  mascotColor: string;
   agentType: AgentType;
   isCustom?: boolean;
 }
@@ -18,6 +18,20 @@ export interface ActivityItem {
   text: string;
   timeAgo: string;
   type: "info" | "diff" | "command" | "alert";
+}
+
+export interface ChatMessage {
+  id: string;
+  sender: "user" | "agent";
+  text: string;
+  attachment?: string;
+  timestamp: number;
+}
+
+export interface AttachedFile {
+  name: string;
+  path?: string;
+  size?: number;
 }
 
 export interface ApprovalRequest {

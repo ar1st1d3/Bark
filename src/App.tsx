@@ -3,9 +3,17 @@ import { useAgentStore } from "./store/useAgentStore";
 import { ClosedNotch } from "./components/pill/ClosedNotch";
 import { CommandPanel } from "./components/panel/CommandPanel";
 import { SocketEventPayload } from "./types/socket";
+import { pugAudio } from "./components/mascot/PugAudio";
 
 export const App: React.FC = () => {
-  const { isExpanded, setIsExpanded, handleSocketEvent, appendOutput } = useAgentStore();
+  const {
+    isExpanded,
+    setIsExpanded,
+    setActiveNav,
+    setAttachedFile,
+    handleSocketEvent,
+    appendOutput,
+  } = useAgentStore();
 
   useEffect(() => {
     // Listen to Tauri events if available
@@ -45,8 +53,33 @@ export const App: React.FC = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isExpanded, setIsExpanded]);
 
+  // Handle Drag & Drop of files onto the notch
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      setAttachedFile({
+        name: file.name,
+        size: file.size,
+      });
+      setIsExpanded(true);
+      setActiveNav("chat");
+      pugAudio.playBark();
+    }
+  };
+
   return (
-    <div className="w-full flex flex-col items-center justify-start m-0 p-0 select-none">
+    <div
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      className="w-full flex flex-col items-center justify-start m-0 p-0 select-none"
+    >
       {isExpanded ? <CommandPanel /> : <ClosedNotch />}
     </div>
   );
