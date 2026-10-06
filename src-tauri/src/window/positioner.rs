@@ -3,7 +3,7 @@ use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize};
 const PILL_WIDTH: u32 = 84;
 const PILL_HEIGHT: u32 = 42;
 
-const EXPANDED_WIDTH: u32 = 750;
+const EXPANDED_WIDTH: u32 = 760;
 const EXPANDED_HEIGHT: u32 = 340;
 const EXPANDED_HEIGHT_CHAT: u32 = 340;
 
@@ -27,13 +27,13 @@ pub fn set_pill_mode(app: &AppHandle) -> Result<(), String> {
     }
 }
 
-pub fn set_expanded_mode(app: &AppHandle, is_chat: bool) -> Result<(), String> {
+pub fn set_expanded_mode(app: &AppHandle, is_chat: bool, height_opt: Option<u32>) -> Result<(), String> {
     if let Some(window) = app.get_webview_window("main") {
-        let height = if is_chat {
+        let height = height_opt.unwrap_or(if is_chat {
             EXPANDED_HEIGHT_CHAT
         } else {
             EXPANDED_HEIGHT
-        };
+        });
 
         window
             .set_size(PhysicalSize::new(EXPANDED_WIDTH, height))

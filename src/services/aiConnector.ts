@@ -23,7 +23,7 @@ export async function testAntigravityConnection(
     }
 
     try {
-      const model = config.model || "gemini-2.5-flash";
+      const model = config.model || "gemini-3.8-flash";
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}?key=${encodeURIComponent(
         config.apiKey.trim()
       )}`;
@@ -168,7 +168,7 @@ export async function callGeminiApi(
   prompt: string,
   config: AntigravityConfig
 ): Promise<string> {
-  const model = config.model || "gemini-2.5-flash";
+  const model = config.model || "gemini-3.8-flash";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(
     config.apiKey.trim()
   )}`;

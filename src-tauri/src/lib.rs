@@ -45,11 +45,16 @@ fn get_bark_socket_path() -> String {
 }
 
 #[tauri::command]
-fn set_window_mode(app: AppHandle, mode: String, is_chat: Option<bool>) -> Result<(), String> {
+fn set_window_mode(
+    app: AppHandle,
+    mode: String,
+    is_chat: Option<bool>,
+    height: Option<u32>,
+) -> Result<(), String> {
     if mode == "pill" {
         set_pill_mode(&app)
     } else {
-        set_expanded_mode(&app, is_chat.unwrap_or(false))
+        set_expanded_mode(&app, is_chat.unwrap_or(false), height)
     }
 }
 

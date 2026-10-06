@@ -7,7 +7,7 @@ export const SecurityTab: React.FC = () => {
   const sec = settings.security;
 
   return (
-    <div className="flex flex-col gap-2.5 max-h-[225px] overflow-y-auto pr-1 select-none text-xs">
+    <div className="flex flex-col gap-2.5 h-[375px] overflow-y-auto pr-1 select-none text-xs">
       {/* Intro Banner */}
       <div className="flex items-center gap-2 p-2 rounded-xl bg-[#111116] border border-[#22222a] text-neutral-300">
         <ShieldCheck size={18} className="text-emerald-400 flex-shrink-0" />

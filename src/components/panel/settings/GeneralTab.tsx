@@ -26,7 +26,7 @@ export const GeneralTab: React.FC = () => {
   };
 
   return (
-    <div className="grid grid-cols-2 gap-3 max-h-[225px] overflow-y-auto pr-1 select-none text-xs">
+    <div className="grid grid-cols-2 gap-3 h-[375px] overflow-y-auto pr-1 select-none text-xs">
       {/* Audio & Companion SFX Card */}
       <div className="flex flex-col justify-between bg-[#111116] border border-[#22222a] rounded-xl p-3 text-white shadow-sm">
         <div className="space-y-2.5">

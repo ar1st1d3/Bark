@@ -59,10 +59,10 @@ export const AgentConnectorTab: React.FC = () => {
   };
 
   return (
-    <div className="grid grid-cols-2 gap-3 max-h-[225px] overflow-y-auto pr-1 select-none">
+    <div className="grid grid-cols-2 gap-3 h-[375px] overflow-y-auto pr-1 select-none">
       {/* --- Antigravity Card --- */}
-      <div className="flex flex-col justify-between bg-[#111116] border border-[#22222a] rounded-xl p-3 text-white shadow-sm">
-        <div className="space-y-2">
+      <div className="flex flex-col justify-between bg-[#111116] border border-[#22222a] rounded-xl p-3.5 text-white shadow-sm">
+        <div className="space-y-2.5">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-neutral-800/60 pb-2">
             <div className="flex items-center gap-2">
@@ -71,7 +71,7 @@ export const AgentConnectorTab: React.FC = () => {
               </div>
               <div>
                 <div className="text-xs font-bold leading-tight">Google Antigravity</div>
-                <div className="text-[10px] text-neutral-400">Google DeepMind</div>
+                <div className="text-[10px] text-neutral-400">Google DeepMind • Gemini 3.8</div>
               </div>
             </div>
 
@@ -89,7 +89,7 @@ export const AgentConnectorTab: React.FC = () => {
           <div className="grid grid-cols-3 gap-1 p-0.5 bg-neutral-900/80 rounded-lg border border-neutral-800 text-[10px]">
             <button
               onClick={() => updateAntigravityConfig({ mode: "gemini_api" })}
-              className={`py-1 rounded font-medium flex items-center justify-center gap-1 transition-colors ${
+              className={`py-1.5 rounded font-medium flex items-center justify-center gap-1 transition-colors ${
                 settings.antigravity.mode === "gemini_api"
                   ? "bg-blue-600 text-white font-semibold"
                   : "text-neutral-400 hover:text-white"
@@ -100,7 +100,7 @@ export const AgentConnectorTab: React.FC = () => {
             </button>
             <button
               onClick={() => updateAntigravityConfig({ mode: "cli_pty" })}
-              className={`py-1 rounded font-medium flex items-center justify-center gap-1 transition-colors ${
+              className={`py-1.5 rounded font-medium flex items-center justify-center gap-1 transition-colors ${
                 settings.antigravity.mode === "cli_pty"
                   ? "bg-blue-600 text-white font-semibold"
                   : "text-neutral-400 hover:text-white"
@@ -111,7 +111,7 @@ export const AgentConnectorTab: React.FC = () => {
             </button>
             <button
               onClick={() => updateAntigravityConfig({ mode: "socket_hook" })}
-              className={`py-1 rounded font-medium flex items-center justify-center gap-1 transition-colors ${
+              className={`py-1.5 rounded font-medium flex items-center justify-center gap-1 transition-colors ${
                 settings.antigravity.mode === "socket_hook"
                   ? "bg-blue-600 text-white font-semibold"
                   : "text-neutral-400 hover:text-white"
@@ -124,7 +124,7 @@ export const AgentConnectorTab: React.FC = () => {
 
           {/* Specific Inputs based on Mode */}
           {settings.antigravity.mode === "gemini_api" && (
-            <div className="space-y-1.5 pt-1">
+            <div className="space-y-2 pt-1">
               <div>
                 <div className="flex items-center justify-between text-[10px] text-neutral-400 mb-0.5">
                   <span className="flex items-center gap-1">
@@ -147,7 +147,7 @@ export const AgentConnectorTab: React.FC = () => {
                       updateAntigravityConfig({ apiKey: e.target.value })
                     }
                     placeholder="AIzaSy..."
-                    className="w-full bg-black/70 border border-neutral-800 rounded px-2 py-1 text-xs font-mono text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-blue-500 pr-7"
+                    className="w-full bg-black/70 border border-neutral-800 rounded px-2.5 py-1.5 text-xs font-mono text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-blue-500 pr-7"
                   />
                   <button
                     type="button"
@@ -161,19 +161,78 @@ export const AgentConnectorTab: React.FC = () => {
 
               <div>
                 <label className="block text-[10px] text-neutral-400 mb-0.5">
-                  Modèle Gemini
+                  Modèle Gemini (Google Antigravity)
                 </label>
                 <select
-                  value={settings.antigravity.model}
-                  onChange={(e) =>
-                    updateAntigravityConfig({ model: e.target.value })
+                  value={
+                    [
+                      "gemini-3.8-flash",
+                      "gemini-3.8-pro",
+                      "gemini-3-flash",
+                      "gemini-3-pro",
+                      "gemini-2.5-flash",
+                      "gemini-2.5-pro",
+                      "gemini-2.0-flash",
+                    ].includes(settings.antigravity.model)
+                      ? settings.antigravity.model
+                      : "custom"
                   }
-                  className="w-full bg-black/70 border border-neutral-800 rounded px-2 py-1 text-xs text-neutral-200 focus:outline-none focus:border-blue-500"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val !== "custom") {
+                      updateAntigravityConfig({ model: val });
+                    }
+                  }}
+                  className="w-full bg-black/70 border border-neutral-800 rounded px-2.5 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-blue-500"
                 >
-                  <option value="gemini-2.5-flash">gemini-2.5-flash (Ultra rapide & intelligent)</option>
-                  <option value="gemini-2.5-pro">gemini-2.5-pro (Raisonnement maximal)</option>
-                  <option value="gemini-2.0-flash">gemini-2.0-flash (Stable)</option>
+                  <option value="gemini-3.8-flash">
+                    ✨ Gemini 3.8 Flash (Dernier modèle Antigravity - Recommandé)
+                  </option>
+                  <option value="gemini-3.8-pro">
+                    🧠 Gemini 3.8 Pro (Raisonnement maximal & Code)
+                  </option>
+                  <option value="gemini-3-flash">
+                    ⚡ Gemini 3 Flash (Nouvelle génération)
+                  </option>
+                  <option value="gemini-3-pro">
+                    🎯 Gemini 3 Pro
+                  </option>
+                  <option value="gemini-2.5-flash">
+                    Gemini 2.5 Flash
+                  </option>
+                  <option value="gemini-2.5-pro">
+                    Gemini 2.5 Pro
+                  </option>
+                  <option value="gemini-2.0-flash">
+                    Gemini 2.0 Flash
+                  </option>
+                  <option value="custom">
+                    ✏️ Autre identifiant de modèle personnalisé...
+                  </option>
                 </select>
+
+                {/* Custom Model Input if chosen */}
+                {!([
+                  "gemini-3.8-flash",
+                  "gemini-3.8-pro",
+                  "gemini-3-flash",
+                  "gemini-3-pro",
+                  "gemini-2.5-flash",
+                  "gemini-2.5-pro",
+                  "gemini-2.0-flash",
+                ].includes(settings.antigravity.model)) && (
+                  <div className="mt-1.5">
+                    <input
+                      type="text"
+                      value={settings.antigravity.model}
+                      onChange={(e) =>
+                        updateAntigravityConfig({ model: e.target.value })
+                      }
+                      placeholder="Nom du modèle (ex: gemini-3.8-flash-thinking)"
+                      className="w-full bg-black/70 border border-blue-500/60 rounded px-2.5 py-1 text-xs font-mono text-blue-200 focus:outline-none"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -242,8 +301,8 @@ export const AgentConnectorTab: React.FC = () => {
       </div>
 
       {/* --- Hermes Agent Card --- */}
-      <div className="flex flex-col justify-between bg-[#111116] border border-[#22222a] rounded-xl p-3 text-white shadow-sm">
-        <div className="space-y-2">
+      <div className="flex flex-col justify-between bg-[#111116] border border-[#22222a] rounded-xl p-3.5 text-white shadow-sm">
+        <div className="space-y-2.5">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-neutral-800/60 pb-2">
             <div className="flex items-center gap-2">
@@ -252,7 +311,7 @@ export const AgentConnectorTab: React.FC = () => {
               </div>
               <div>
                 <div className="text-xs font-bold leading-tight">Hermes Agent</div>
-                <div className="text-[10px] text-neutral-400">Nous Research</div>
+                <div className="text-[10px] text-neutral-400">Nous Research • Hermes 3</div>
               </div>
             </div>
 
@@ -270,7 +329,7 @@ export const AgentConnectorTab: React.FC = () => {
           <div className="grid grid-cols-3 gap-1 p-0.5 bg-neutral-900/80 rounded-lg border border-neutral-800 text-[10px]">
             <button
               onClick={() => updateHermesConfig({ mode: "openrouter_api" })}
-              className={`py-1 rounded font-medium flex items-center justify-center gap-1 transition-colors ${
+              className={`py-1.5 rounded font-medium flex items-center justify-center gap-1 transition-colors ${
                 settings.hermes.mode === "openrouter_api"
                   ? "bg-amber-500 text-black font-semibold"
                   : "text-neutral-400 hover:text-white"
@@ -281,7 +340,7 @@ export const AgentConnectorTab: React.FC = () => {
             </button>
             <button
               onClick={() => updateHermesConfig({ mode: "local_ollama" })}
-              className={`py-1 rounded font-medium flex items-center justify-center gap-1 transition-colors ${
+              className={`py-1.5 rounded font-medium flex items-center justify-center gap-1 transition-colors ${
                 settings.hermes.mode === "local_ollama"
                   ? "bg-amber-500 text-black font-semibold"
                   : "text-neutral-400 hover:text-white"
@@ -292,7 +351,7 @@ export const AgentConnectorTab: React.FC = () => {
             </button>
             <button
               onClick={() => updateHermesConfig({ mode: "cli_pty" })}
-              className={`py-1 rounded font-medium flex items-center justify-center gap-1 transition-colors ${
+              className={`py-1.5 rounded font-medium flex items-center justify-center gap-1 transition-colors ${
                 settings.hermes.mode === "cli_pty"
                   ? "bg-amber-500 text-black font-semibold"
                   : "text-neutral-400 hover:text-white"
@@ -305,7 +364,7 @@ export const AgentConnectorTab: React.FC = () => {
 
           {/* Specific Inputs based on Mode */}
           {settings.hermes.mode === "openrouter_api" && (
-            <div className="space-y-1.5 pt-1">
+            <div className="space-y-2 pt-1">
               <div>
                 <div className="flex items-center justify-between text-[10px] text-neutral-400 mb-0.5">
                   <span className="flex items-center gap-1">
@@ -328,7 +387,7 @@ export const AgentConnectorTab: React.FC = () => {
                       updateHermesConfig({ apiKey: e.target.value })
                     }
                     placeholder="sk-or-v1-..."
-                    className="w-full bg-black/70 border border-neutral-800 rounded px-2 py-1 text-xs font-mono text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-amber-500 pr-7"
+                    className="w-full bg-black/70 border border-neutral-800 rounded px-2.5 py-1.5 text-xs font-mono text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-amber-500 pr-7"
                   />
                   <button
                     type="button"
@@ -345,11 +404,22 @@ export const AgentConnectorTab: React.FC = () => {
                   Modèle Nous Hermes
                 </label>
                 <select
-                  value={settings.hermes.model}
-                  onChange={(e) =>
-                    updateHermesConfig({ model: e.target.value })
+                  value={
+                    [
+                      "nousresearch/hermes-3-llama-3.1-70b",
+                      "nousresearch/hermes-3-llama-3.1-405b",
+                      "nousresearch/hermes-2-pro-llama-3-8b",
+                    ].includes(settings.hermes.model)
+                      ? settings.hermes.model
+                      : "custom"
                   }
-                  className="w-full bg-black/70 border border-neutral-800 rounded px-2 py-1 text-xs text-neutral-200 focus:outline-none focus:border-amber-500"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val !== "custom") {
+                      updateHermesConfig({ model: val });
+                    }
+                  }}
+                  className="w-full bg-black/70 border border-neutral-800 rounded px-2.5 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-amber-500"
                 >
                   <option value="nousresearch/hermes-3-llama-3.1-70b">
                     Hermes 3 (Llama 3.1 70B) - Recommandé
@@ -360,7 +430,28 @@ export const AgentConnectorTab: React.FC = () => {
                   <option value="nousresearch/hermes-2-pro-llama-3-8b">
                     Hermes 2 Pro (Llama 3 8B) - Économique
                   </option>
+                  <option value="custom">
+                    ✏️ Autre modèle OpenRouter personnalisé...
+                  </option>
                 </select>
+
+                {!([
+                  "nousresearch/hermes-3-llama-3.1-70b",
+                  "nousresearch/hermes-3-llama-3.1-405b",
+                  "nousresearch/hermes-2-pro-llama-3-8b",
+                ].includes(settings.hermes.model)) && (
+                  <div className="mt-1.5">
+                    <input
+                      type="text"
+                      value={settings.hermes.model}
+                      onChange={(e) =>
+                        updateHermesConfig({ model: e.target.value })
+                      }
+                      placeholder="ex: nousresearch/deephermes-3-llama-3-8b-preview"
+                      className="w-full bg-black/70 border border-amber-500/60 rounded px-2.5 py-1 text-xs font-mono text-amber-200 focus:outline-none"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}

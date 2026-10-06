@@ -11,9 +11,9 @@ export const SettingsPanel: React.FC = () => {
   const [subTab, setSubTab] = useState<SettingsSubTab>("agents");
 
   return (
-    <div className="flex flex-col h-[260px] bg-[#141418] border border-[#24242b] rounded-2xl p-3 text-white shadow-inner select-none justify-between">
+    <div className="flex flex-col h-[440px] bg-[#141418] border border-[#24242b] rounded-2xl p-3.5 text-white shadow-inner select-none justify-between">
       {/* Sub-tab Navigation Header */}
-      <div className="flex items-center justify-between pb-2 border-b border-neutral-800/60">
+      <div className="flex items-center justify-between pb-2.5 border-b border-neutral-800/60">
         <div className="flex items-center gap-1 bg-black/60 p-1 rounded-xl border border-neutral-800/80">
           <button
             onClick={() => setSubTab("agents")}

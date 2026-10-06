@@ -192,7 +192,7 @@ const defaultSettings: AppSettings = {
     mode: "gemini_api",
     cliPath: "agy",
     apiKey: "",
-    model: "gemini-2.5-flash",
+    model: "gemini-3.8-flash",
   },
   hermes: {
     mode: "openrouter_api",
@@ -291,6 +291,7 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
         invoke("set_window_mode", {
           mode: "expanded",
           isChat: nav === "chat" || nav === "code",
+          height: nav === "settings" ? 520 : 340,
         }).catch(console.error);
       });
     }
@@ -300,9 +301,11 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
     set({ isExpanded: expanded });
     if ((window as any).__TAURI_INTERNALS__) {
       import("@tauri-apps/api/core").then(({ invoke }) => {
+        const curNav = get().activeNav;
         invoke("set_window_mode", {
           mode: expanded ? "expanded" : "pill",
-          isChat: get().activeNav === "chat" || get().activeNav === "code",
+          isChat: curNav === "chat" || curNav === "code",
+          height: curNav === "settings" ? 520 : 340,
         }).catch(console.error);
       });
     }

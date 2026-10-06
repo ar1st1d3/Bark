@@ -11,7 +11,7 @@ export const CommandPanel: React.FC = () => {
   const { activeNav } = useAgentStore();
 
   return (
-    <div className="flex flex-col w-[740px] bg-black text-white rounded-b-[24px] shadow-2xl border-x border-b border-neutral-800/80 overflow-hidden select-none">
+    <div className="flex flex-col w-[750px] bg-black text-white rounded-b-[24px] shadow-2xl border-x border-b border-neutral-800/80 overflow-hidden select-none">
       {/* Top Notch Header Bar */}
       <NotchHeader />
 
