@@ -12,6 +12,7 @@ export const AgentCardLeft: React.FC = () => {
     pendingApproval,
     pendingQuestion,
     submitApproval,
+    setActiveNav,
   } = useAgentStore();
 
   const currentSession = sessions[activeAgent];
@@ -152,7 +153,11 @@ export const AgentCardLeft: React.FC = () => {
           </span>
         </div>
 
-        <div className="flex items-baseline gap-1.5 text-xl font-extrabold tracking-tight text-white mb-2 font-mono">
+        <div
+          onClick={() => setActiveNav("code")}
+          className="flex items-baseline gap-1.5 text-xl font-extrabold tracking-tight text-white mb-2 font-mono cursor-pointer hover:opacity-85 transition-opacity"
+          title="Inspecter le code et les diffs"
+        >
           <span>
             {totalAdditions > 0 || totalDeletions > 0
               ? `+${totalAdditions} -${totalDeletions}`
@@ -167,7 +172,12 @@ export const AgentCardLeft: React.FC = () => {
           {currentSession.recentActivities.slice(0, 3).map((act, index) => (
             <div
               key={act.id}
-              className="flex items-center justify-between text-[11px] text-neutral-300 font-medium"
+              onClick={() => {
+                if (act.type === "diff") setActiveNav("code");
+              }}
+              className={`flex items-center justify-between text-[11px] text-neutral-300 font-medium ${
+                act.type === "diff" ? "cursor-pointer hover:text-white" : ""
+              }`}
             >
               <div className="flex items-center gap-1.5 truncate pr-2">
                 <span

@@ -12,7 +12,7 @@ import {
 import { SocketEventPayload } from "../types/socket";
 import { pugAudio } from "../components/mascot/PugAudio";
 
-export type NavTab = "home" | "chat" | "settings" | "add";
+export type NavTab = "home" | "code" | "chat" | "settings" | "add";
 
 interface AgentStoreState {
   activeAgent: AgentType;
@@ -218,7 +218,7 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
       import("@tauri-apps/api/core").then(({ invoke }) => {
         invoke("set_window_mode", {
           mode: "expanded",
-          isChat: nav === "chat",
+          isChat: nav === "chat" || nav === "code",
         }).catch(console.error);
       });
     }
@@ -230,7 +230,7 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
       import("@tauri-apps/api/core").then(({ invoke }) => {
         invoke("set_window_mode", {
           mode: expanded ? "expanded" : "pill",
-          isChat: get().activeNav === "chat",
+          isChat: get().activeNav === "chat" || get().activeNav === "code",
         }).catch(console.error);
       });
     }
@@ -393,6 +393,16 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
         const actionDesc =
           event.description || `Outil : ${event.tool}`;
 
+        const t = (event.tool || "").toLowerCase();
+        let step: "read" | "edit" | "bash" | "done" = "bash";
+        if (t.includes("read") || t.includes("view") || t.includes("grep") || t.includes("find") || t.includes("search")) {
+          step = "read";
+        } else if (t.includes("write") || t.includes("edit") || t.includes("replace") || t.includes("diff") || t.includes("patch")) {
+          step = "edit";
+        } else if (t.includes("command") || t.includes("bash") || t.includes("terminal") || t.includes("sh") || t.includes("exec")) {
+          step = "bash";
+        }
+
         const newAct: ActivityItem = {
           id: `act-${Date.now()}`,
           text: actionDesc,
@@ -422,6 +432,7 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
             ...state.sessions,
             [agentKey]: {
               ...currentSession,
+              actionStep: step,
               status: event.requires_approval ? "alert" : "working",
               currentAction: actionDesc,
               stepCount: currentSession.stepCount + 1,
@@ -458,6 +469,16 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
       }
 
       case "diff_update": {
+        pugAudio.playChime();
+        get().setIsExpanded(true);
+        if ((window as any).__TAURI_INTERNALS__) {
+          import("@tauri-apps/api/core").then(({ invoke }) => {
+            invoke("set_window_mode", {
+              mode: "expanded",
+              isChat: true,
+            }).catch(console.error);
+          });
+        }
         set((state) => {
           const s = state.sessions[agentKey];
           const existing = s.diffs.filter((d) => d.filePath !== event.file_path);
@@ -468,19 +489,22 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
             type: "diff",
           };
           return {
+            activeAgent: agentKey,
+            activeNav: "code",
             sessions: {
               ...state.sessions,
               [agentKey]: {
                 ...s,
+                actionStep: "edit",
                 currentAction: `Édition : ${event.file_path} (+${event.additions} -${event.deletions})`,
                 diffs: [
-                  ...existing,
                   {
                     filePath: event.file_path,
                     additions: event.additions,
                     deletions: event.deletions,
                     diff: event.diff,
                   },
+                  ...existing,
                 ],
                 recentActivities: [newAct, ...s.recentActivities.slice(0, 4)],
               },
@@ -521,7 +545,8 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
               [agentKey]: {
                 ...s,
                 status: event.status,
-                currentAction: event.message || `Statut: ${event.status}`,
+                actionStep: event.status === "done" ? "done" : s.actionStep,
+                currentAction: event.message || (event.status === "done" ? "Tâche terminée avec succès" : `Statut: ${event.status}`),
               },
             },
           };

@@ -65,6 +65,7 @@ export interface AgentSession {
   id: string;
   agent: AgentType;
   status: PugState;
+  actionStep?: "read" | "edit" | "bash" | "done";
   currentAction?: string;
   lastPrompt?: string;
   startTime: number;

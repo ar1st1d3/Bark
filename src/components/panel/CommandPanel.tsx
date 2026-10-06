@@ -4,6 +4,7 @@ import { NotchHeader } from "./NotchHeader";
 import { AgentCardLeft } from "./AgentCardLeft";
 import { ModelSelectorRight } from "./ModelSelectorRight";
 import { FriendlyChat } from "./FriendlyChat";
+import { CodeDiffViewer } from "./CodeDiffViewer";
 import { CheckCircle } from "lucide-react";
 
 export const CommandPanel: React.FC = () => {
@@ -24,6 +25,10 @@ export const CommandPanel: React.FC = () => {
             {/* Right Card: Model / Agent Selection Grid */}
             <ModelSelectorRight />
           </div>
+        )}
+
+        {activeNav === "code" && (
+          <CodeDiffViewer />
         )}
 
         {activeNav === "chat" && (

@@ -54,29 +54,43 @@ def main():
         "type": "agent_connect",
         "agent": agent,
         "session_id": sid,
-        "prompt": "Optimiser le moteur de recherche et mettre à jour le design notch"
+        "prompt": "Mettre à jour le taux de TVA et recalculer la facture"
     })
-    time.sleep(1)
+    time.sleep(0.8)
 
+    # 1. Step: Read
+    send({
+        "type": "pre_tool_use",
+        "agent": agent,
+        "session_id": sid,
+        "tool": "read_file",
+        "args": {"path": "src/invoice.ts"},
+        "description": "Lecture du fichier src/invoice.ts",
+        "requires_approval": False
+    })
+    time.sleep(0.8)
+
+    # 2. Step: Edit with invoice diff (matches screenshot)
     send({
         "type": "diff_update",
         "agent": agent,
         "session_id": sid,
-        "file_path": "src/window/positioner.rs",
-        "additions": 34,
-        "deletions": 8,
-        "diff": "@@ -1,5 +1,12 @@\n-const PILL_WIDTH = 340;\n+const PILL_WIDTH = 84;\n+// Ancrage au sommet d'écran\n"
+        "file_path": "src/invoice.ts",
+        "additions": 1,
+        "deletions": 1,
+        "diff": "10   import { Item } from './types'\n11\n12 - const TVA = 0.196\n12 + const TVA = 0.20\n13\n14   export function total(items: Item[]) {\n15     const sum = items.reduce((s, i) => s + i.price, 0)\n16     return sum * (1 + TVA)\n17   }"
     })
-    time.sleep(1)
+    time.sleep(0.8)
 
+    # 3. Step: Bash (run command with authorization prompt)
     send({
         "type": "pre_tool_use",
         "request_id": f"req-{uuid.uuid4().hex[:8]}",
         "agent": agent,
         "session_id": sid,
         "tool": "run_command",
-        "args": {"command": "cargo build --release"},
-        "description": "L'agent demande à lancer le build de production.",
+        "args": {"command": "npm test -- --filter invoice"},
+        "description": "Exécution de la suite de tests de facturation",
         "requires_approval": True
     }, wait_response=True)
 

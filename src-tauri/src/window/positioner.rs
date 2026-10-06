@@ -4,8 +4,8 @@ const PILL_WIDTH: u32 = 84;
 const PILL_HEIGHT: u32 = 42;
 
 const EXPANDED_WIDTH: u32 = 750;
-const EXPANDED_HEIGHT: u32 = 250;
-const EXPANDED_HEIGHT_CHAT: u32 = 420;
+const EXPANDED_HEIGHT: u32 = 340;
+const EXPANDED_HEIGHT_CHAT: u32 = 340;
 
 pub fn set_pill_mode(app: &AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window("main") {

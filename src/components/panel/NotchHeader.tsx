@@ -1,10 +1,12 @@
 import React, { useRef } from "react";
 import { useAgentStore } from "../../store/useAgentStore";
-import { Home, MessageSquare, Plus, Settings, Volume2, VolumeX } from "lucide-react";
+import { Home, Code2, MessageSquare, Plus, Settings, Volume2, VolumeX } from "lucide-react";
 import { pugAudio } from "../mascot/PugAudio";
 
 export const NotchHeader: React.FC = () => {
   const {
+    activeAgent,
+    sessions,
     activeNav,
     setActiveNav,
     isMuted,
@@ -12,6 +14,9 @@ export const NotchHeader: React.FC = () => {
     socketConnected,
     setAttachedFile,
   } = useAgentStore();
+
+  const currentSession = sessions[activeAgent];
+  const hasDiffs = (currentSession?.diffs?.length ?? 0) > 0;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -53,6 +58,21 @@ export const NotchHeader: React.FC = () => {
           title="Accueil & Vue d'ensemble"
         >
           <Home size={14} />
+        </button>
+
+        <button
+          onClick={() => setActiveNav("code")}
+          className={`relative flex items-center justify-center w-7 h-7 rounded-full transition-colors ${
+            activeNav === "code"
+              ? "bg-neutral-800 text-white shadow-sm"
+              : "text-neutral-500 hover:text-neutral-300 hover:bg-neutral-900"
+          }`}
+          title="Inspecteur Code & Diffs"
+        >
+          <Code2 size={14} />
+          {hasDiffs && (
+            <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_4px_rgba(251,191,36,0.8)]" />
+          )}
         </button>
 
         <button
