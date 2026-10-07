@@ -355,6 +355,22 @@ export const AgentConnectorTab: React.FC = () => {
                   placeholder="agy"
                   className="w-full bg-black/70 border border-neutral-800 rounded px-2 py-1 text-xs font-mono text-neutral-200 focus:outline-none focus:border-blue-500"
                 />
+                <div className="flex items-center gap-1.5 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => updateAntigravityConfig({ cliPath: "~/.local/bin/agy" })}
+                    className="text-[9px] px-2 py-0.5 rounded bg-blue-950/60 border border-blue-500/30 text-blue-300 hover:bg-blue-900/60 transition-colors"
+                  >
+                    Utiliser ~/.local/bin/agy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateAntigravityConfig({ cliPath: "agy" })}
+                    className="text-[9px] px-2 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white transition-colors"
+                  >
+                    Défaut (agy)
+                  </button>
+                </div>
               </div>
 
               {/* Notice & Install instructions */}

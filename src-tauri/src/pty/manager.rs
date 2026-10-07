@@ -56,6 +56,13 @@ impl PtyManager {
         if let Some(c) = cwd {
             cmd.cwd(c);
         }
+        if let Ok(path) = std::env::var("PATH") {
+            cmd.env("PATH", path);
+        }
+        if let Ok(home) = std::env::var("HOME") {
+            cmd.env("HOME", home);
+        }
+        cmd.env("TERM", "xterm-256color");
 
         let _child = pair
             .slave

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useAgentStore } from "../../store/useAgentStore";
 import { PugCharacter } from "../mascot/PugCharacter";
 import { Check, Circle, Terminal } from "lucide-react";
+import { FileLogo } from "./FileLogo";
 
 export const CodeDiffViewer: React.FC = () => {
   const { activeAgent, models, selectedModelId, sessions } = useAgentStore();
@@ -29,22 +30,6 @@ export const CodeDiffViewer: React.FC = () => {
   const [selectedFileIndex, setSelectedFileIndex] = useState(0);
   const activeDiff = diffs[selectedFileIndex] || diffs[0];
 
-  const getExtBadgeColor = (extension: string) => {
-    switch (extension) {
-      case "TS":
-      case "TSX":
-        return "bg-blue-600 text-white";
-      case "JS":
-      case "JSX":
-        return "bg-amber-500 text-black";
-      case "RS":
-        return "bg-orange-600 text-white";
-      case "PY":
-        return "bg-emerald-600 text-white";
-      default:
-        return "bg-neutral-700 text-white";
-    }
-  };
 
   const actionStep = currentSession.actionStep || "edit";
 
@@ -269,26 +254,21 @@ export const CodeDiffViewer: React.FC = () => {
           <div className="flex items-center gap-2 overflow-x-auto max-w-[360px]">
             {diffs.map((d, index) => {
               const fName = d.filePath.split("/").pop() || d.filePath;
-              const fExt = fName.split(".").pop()?.toUpperCase() || "TXT";
               const isSel = index === selectedFileIndex;
               return (
                 <button
                   key={index}
                   onClick={() => setSelectedFileIndex(index)}
-                  className={`flex items-center gap-1.5 px-2 py-0.5 rounded transition-colors ${
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-colors cursor-pointer ${
                     isSel
-                      ? "bg-[#1f1f28] text-white border border-[#2e2e38]"
-                      : "text-neutral-400 hover:text-neutral-200"
+                      ? "bg-[#1f1f28] text-white border border-[#2e2e38] shadow-sm ring-1 ring-white/10"
+                      : "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/40"
                   }`}
                 >
-                  <span
-                    className={`px-1.5 py-0.2 rounded text-[9px] font-extrabold uppercase tracking-wider ${getExtBadgeColor(
-                      fExt
-                    )}`}
-                  >
-                    {fExt}
-                  </span>
-                  <span className="font-bold text-neutral-200 font-mono text-xs truncate max-w-[120px]">
+                  {/* Real File Type Logo */}
+                  <FileLogo filename={fName} className="w-3.5 h-3.5 flex-shrink-0 drop-shadow-sm" />
+
+                  <span className="font-bold text-neutral-200 font-mono text-[11px] truncate max-w-[120px]">
                     {fName}
                   </span>
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]" />
@@ -297,13 +277,14 @@ export const CodeDiffViewer: React.FC = () => {
             })}
           </div>
 
-          {/* File path on the right */}
-          <span
-            className="text-[10px] font-mono text-neutral-500 truncate max-w-[190px]"
+          {/* File path on the right with FileLogo */}
+          <div
+            className="flex items-center gap-1.5 text-[10px] font-mono text-neutral-400 truncate max-w-[200px] bg-black/40 px-2 py-0.5 rounded-md border border-neutral-800/60"
             title={activeDiff.filePath}
           >
-            {activeDiff.filePath}
-          </span>
+            <FileLogo filename={activeDiff.filePath} className="w-3 h-3 flex-shrink-0" />
+            <span className="truncate">{activeDiff.filePath}</span>
+          </div>
         </div>
 
         {/* Code Diff Body */}

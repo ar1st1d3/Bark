@@ -69,10 +69,14 @@ export async function testAntigravityConnection(
   if (config.mode === "cli_pty") {
     const cmd = config.cliPath || "agy";
     let isAvailable = false;
+    let resolved = cmd;
     if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
       try {
         const { invoke } = await import("@tauri-apps/api/core");
         isAvailable = await invoke<boolean>("check_cli_command", { command: cmd });
+        if (isAvailable) {
+          resolved = await invoke<string>("resolve_cli_command", { command: cmd });
+        }
       } catch {
         isAvailable = false;
       }
@@ -81,13 +85,13 @@ export async function testAntigravityConnection(
     if (!isAvailable) {
       return {
         success: false,
-        message: `La commande « ${cmd} » est introuvable sur votre système. Pour l'installer : curl -fsSL https://antigravity.google/cli/install.sh | bash`,
+        message: `La commande « ${cmd} » est introuvable. Si elle est installée dans ~/.local/bin, indiquez son chemin complet.`,
       };
     }
 
     return {
       success: true,
-      message: `CLI « ${cmd} » détecté et prêt pour le PTY !`,
+      message: `CLI « ${cmd} » détecté (${resolved}) et prêt pour le PTY !`,
       latencyMs: Date.now() - start,
     };
   }

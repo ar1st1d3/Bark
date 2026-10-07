@@ -4,9 +4,12 @@ use serde_json::Value;
 use tauri::{AppHandle, State};
 use tokio::sync::Mutex;
 
+mod devtools;
 mod pty;
 mod socket;
 mod window;
+
+use devtools::{get_git_info, get_vscode_info};
 
 use pty::manager::PtyManager;
 use socket::server::{
@@ -58,6 +61,110 @@ fn set_window_mode(
     }
 }
 
+pub fn resolve_cli_path(cmd: &str) -> String {
+    let raw = if let Some(stripped) = cmd.strip_prefix("~/") {
+        if let Some(home) = dirs::home_dir() {
+            home.join(stripped).to_string_lossy().to_string()
+        } else {
+            cmd.to_string()
+        }
+    } else {
+        cmd.to_string()
+    };
+
+    let p = std::path::Path::new(&raw);
+    if p.is_absolute() && p.exists() {
+        return raw;
+    }
+
+    if let Some(home) = dirs::home_dir() {
+        let local_bin = home.join(".local/bin").join(cmd);
+        if local_bin.exists() {
+            return local_bin.to_string_lossy().to_string();
+        }
+
+        let cargo_bin = home.join(".cargo/bin").join(cmd);
+        if cargo_bin.exists() {
+            return cargo_bin.to_string_lossy().to_string();
+        }
+
+        let agy_bin = home.join(".config/Antigravity/bin").join(cmd);
+        if agy_bin.exists() {
+            return agy_bin.to_string_lossy().to_string();
+        }
+    }
+
+    let usr_local = std::path::Path::new("/usr/local/bin").join(cmd);
+    if usr_local.exists() {
+        return usr_local.to_string_lossy().to_string();
+    }
+
+    let usr_bin = std::path::Path::new("/usr/bin").join(cmd);
+    if usr_bin.exists() {
+        return usr_bin.to_string_lossy().to_string();
+    }
+
+    let program = if cfg!(target_os = "windows") { "where" } else { "which" };
+    if let Ok(output) = std::process::Command::new(program).arg(cmd).output() {
+        if output.status.success() {
+            let found = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !found.is_empty() {
+                return found;
+            }
+        }
+    }
+
+    if !cfg!(target_os = "windows") {
+        if let Ok(output) = std::process::Command::new("bash")
+            .args(["-l", "-c", &format!("which {}", cmd)])
+            .output()
+        {
+            if output.status.success() {
+                let found = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if !found.is_empty() {
+                    return found;
+                }
+            }
+        }
+    }
+
+    cmd.to_string()
+}
+
+fn ensure_user_path_env() {
+    let current_path = std::env::var("PATH").unwrap_or_default();
+    let mut extra_paths = Vec::new();
+
+    if let Some(home) = dirs::home_dir() {
+        let local_bin = home.join(".local/bin");
+        if local_bin.exists() {
+            extra_paths.push(local_bin.to_string_lossy().to_string());
+        }
+        let cargo_bin = home.join(".cargo/bin");
+        if cargo_bin.exists() {
+            extra_paths.push(cargo_bin.to_string_lossy().to_string());
+        }
+        let agy_bin = home.join(".config/Antigravity/bin");
+        if agy_bin.exists() {
+            extra_paths.push(agy_bin.to_string_lossy().to_string());
+        }
+    }
+    extra_paths.push("/usr/local/bin".to_string());
+
+    let mut new_path_parts = Vec::new();
+    for p in extra_paths {
+        if !current_path.split(':').any(|part| part == p) {
+            new_path_parts.push(p);
+        }
+    }
+
+    if !new_path_parts.is_empty() {
+        new_path_parts.push(current_path);
+        let updated = new_path_parts.join(":");
+        std::env::set_var("PATH", updated);
+    }
+}
+
 #[tauri::command]
 fn spawn_agent_pty(
     app: AppHandle,
@@ -69,9 +176,10 @@ fn spawn_agent_pty(
     cols: u16,
     rows: u16,
 ) -> Result<(), String> {
+    let resolved_command = resolve_cli_path(&command);
     state
         .pty_manager
-        .spawn(app, session_id, command, args, cwd, cols, rows)
+        .spawn(app, session_id, resolved_command, args, cwd, cols, rows)
 }
 
 #[tauri::command]
@@ -100,6 +208,10 @@ fn pty_kill(state: State<'_, AppState>, session_id: String) -> Result<(), String
 
 #[tauri::command]
 fn check_cli_command(command: String) -> Result<bool, String> {
+    let resolved = resolve_cli_path(&command);
+    if std::path::Path::new(&resolved).exists() {
+        return Ok(true);
+    }
     let program = if cfg!(target_os = "windows") { "where" } else { "which" };
     match std::process::Command::new(program).arg(&command).output() {
         Ok(output) => Ok(output.status.success()),
@@ -107,8 +219,14 @@ fn check_cli_command(command: String) -> Result<bool, String> {
     }
 }
 
+#[tauri::command]
+fn resolve_cli_command(command: String) -> Result<String, String> {
+    Ok(resolve_cli_path(&command))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    ensure_user_path_env();
     let approvals: ApprovalMap = Arc::new(Mutex::new(HashMap::new()));
     let pty_manager = Arc::new(PtyManager::new());
 
@@ -130,6 +248,9 @@ pub fn run() {
             pty_resize,
             pty_kill,
             check_cli_command,
+            resolve_cli_command,
+            get_vscode_info,
+            get_git_info,
         ])
         .setup(move |app| {
             let handle = app.handle().clone();

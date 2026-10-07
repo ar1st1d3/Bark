@@ -99,9 +99,15 @@ export interface SecurityConfig {
   requireApprovalWrite: boolean;
 }
 
+export interface GitHubConfig {
+  token: string;
+  username?: string;
+}
+
 export interface AppSettings {
   antigravity: AntigravityConfig;
   hermes: HermesConfig;
+  github: GitHubConfig;
   security: SecurityConfig;
   soundEnabled: boolean;
   volume: number;

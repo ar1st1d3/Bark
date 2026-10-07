@@ -8,6 +8,7 @@ import {
   AntigravityConfig,
   HermesConfig,
   SecurityConfig,
+  GitHubConfig,
   ApprovalRequest,
   AttachedFile,
   ChatMessage,
@@ -60,6 +61,7 @@ interface AgentStoreState {
   updateAntigravityConfig: (partial: Partial<AntigravityConfig>) => void;
   updateHermesConfig: (partial: Partial<HermesConfig>) => void;
   updateSecurityConfig: (partial: Partial<SecurityConfig>) => void;
+  updateGitHubConfig: (partial: Partial<GitHubConfig>) => void;
   updateSoundSettings: (soundEnabled: boolean, volume: number) => void;
   testConnection: (agent: AgentType) => Promise<TestResult>;
 }
@@ -209,6 +211,10 @@ const defaultSettings: AppSettings = {
     requireApprovalBash: true,
     requireApprovalWrite: true,
   },
+  github: {
+    token: "",
+    username: "",
+  },
   soundEnabled: true,
   volume: 0.8,
 };
@@ -228,6 +234,7 @@ function loadSavedSettings(): AppSettings {
           fallbackModel: parsed.antigravity?.fallbackModel || "gemini-2.5-flash",
         },
         hermes: { ...defaultSettings.hermes, ...parsed.hermes },
+        github: { ...defaultSettings.github, ...parsed.github },
         security: { ...defaultSettings.security, ...parsed.security },
       };
     }
@@ -874,6 +881,15 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
     const updated = {
       ...get().settings,
       security: { ...get().settings.security, ...partial },
+    };
+    persistSettings(updated);
+    set({ settings: updated });
+  },
+
+  updateGitHubConfig: (partial) => {
+    const updated = {
+      ...get().settings,
+      github: { ...get().settings.github, ...partial },
     };
     persistSettings(updated);
     set({ settings: updated });

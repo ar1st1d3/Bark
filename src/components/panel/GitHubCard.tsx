@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { useAgentStore } from "../../store/useAgentStore";
 import {
   FolderGit2,
   Star,
@@ -7,6 +8,11 @@ import {
   RefreshCw,
   GitBranch,
   BookOpen,
+  Check,
+  X,
+  AlertCircle,
+  Edit2,
+  Key,
 } from "lucide-react";
 
 interface GitHubProfile {
@@ -21,143 +27,302 @@ interface GitHubProfile {
   htmlUrl: string;
 }
 
-interface GitHubRepo {
+interface GitHubRepoItem {
+  id: number;
   name: string;
-  description: string;
-  language: string;
+  description: string | null;
+  language: string | null;
   stars: number;
+  htmlUrl: string;
   isCurrent?: boolean;
 }
 
-const initialProfile: GitHubProfile = {
-  name: "Aristide Ve",
-  login: "ar1st1d3",
-  avatarUrl: "https://avatars.githubusercontent.com/u/93650137?v=4",
-  bio: "Étudiant IMT Nord Europe",
-  publicRepos: 5,
-  totalStars: 1,
-  followers: 2,
-  following: 2,
-  htmlUrl: "https://github.com/ar1st1d3",
-};
-
-const pinnedRepos: GitHubRepo[] = [
-  {
-    name: "Bark",
-    description: "Assistant IA natif pour Dynamic Notch Linux & IDE",
-    language: "TypeScript",
-    stars: 0,
-    isCurrent: true,
-  },
-  {
-    name: "Phrygibot",
-    description: "Chatbot Python sur les JO de Paris 2024",
-    language: "Python",
-    stars: 1,
-  },
-  {
-    name: "chess",
-    description: "Jeu d'échecs en Python avec Tkinter",
-    language: "Python",
-    stars: 0,
-  },
-];
+const STORAGE_KEY_USER = "bark_github_user";
+const STORAGE_KEY_CACHE = "bark_github_cache_v1";
 
 export const GitHubCard: React.FC = () => {
-  const [profile, setProfile] = useState<GitHubProfile>(initialProfile);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { settings, setActiveNav } = useAgentStore();
+  const token = settings.github?.token?.trim();
+
+  const [username, setUsername] = useState<string>(() => {
+    return localStorage.getItem(STORAGE_KEY_USER) || "";
+  });
+
+  const [profile, setProfile] = useState<GitHubProfile | null>(() => {
+    try {
+      const cached = localStorage.getItem(STORAGE_KEY_CACHE);
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [repos, setRepos] = useState<GitHubRepoItem[]>([]);
+  const [currentRepoName, setCurrentRepoName] = useState<string>("");
+  const [isLoading, setIsLoading] = useState<boolean>(!profile);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "repos">("overview");
 
-  // Attempt live refresh when mounted if possible
-  const fetchLiveData = async () => {
+  // Inline username editing
+  const [isEditingUser, setIsEditingUser] = useState<boolean>(false);
+  const [inputVal, setInputVal] = useState<string>("");
+
+  // Auto-detect git info from local repository on mount if no username saved
+  useEffect(() => {
+    if ((window as any).__TAURI_INTERNALS__) {
+      import("@tauri-apps/api/core").then(({ invoke }) => {
+        invoke<{
+          git_user_name?: string;
+          git_user_email?: string;
+          github_owner?: string;
+          github_repo?: string;
+        }>("get_git_info")
+          .then((info) => {
+            if (info?.github_repo) {
+              setCurrentRepoName(info.github_repo);
+            }
+            if (!username) {
+              const detected = info?.github_owner || info?.git_user_name;
+              if (detected) {
+                setUsername(detected);
+                localStorage.setItem(STORAGE_KEY_USER, detected);
+              }
+            }
+          })
+          .catch(console.error);
+      });
+    } else if (!username) {
+      // Fallback default if nothing detected
+      setUsername("ar1st1d3");
+    }
+  }, [username]);
+
+  // Fetch real GitHub API data for any user
+  const fetchGitHubData = useCallback(async (targetUser: string) => {
+    if (!targetUser.trim()) return;
+
+    setIsLoading(true);
     setIsRefreshing(true);
+    setError(null);
+
     try {
-      const userRes = await fetch("https://api.github.com/users/ar1st1d3");
-      if (userRes.ok) {
-        const userData = await userRes.json();
-        
-        // Fetch repos to recalculate star total
-        const reposRes = await fetch("https://api.github.com/users/ar1st1d3/repos?per_page=100");
-        let stars = initialProfile.totalStars;
+      const headers: Record<string, string> = {
+        Accept: "application/vnd.github.v3+json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      // 1. Fetch user profile
+      const userRes = await fetch(
+        `https://api.github.com/users/${encodeURIComponent(targetUser.trim())}`,
+        { headers }
+      );
+      if (userRes.status === 404) {
+        throw new Error(`Utilisateur "${targetUser}" introuvable`);
+      }
+      if (userRes.status === 403) {
+        throw new Error(
+          token
+            ? "Limite API atteinte ou token restreint."
+            : "Limite API atteinte (60 req/h). Ajoutez un token dans les paramètres."
+        );
+      }
+      if (!userRes.ok) {
+        throw new Error(`Erreur API GitHub (${userRes.status})`);
+      }
+
+      const userData = await userRes.json();
+
+      // 2. Fetch user repositories (up to 100 sorted by updated)
+      let calculatedStars = 0;
+      let fetchedRepos: GitHubRepoItem[] = [];
+
+      try {
+        const reposRes = await fetch(
+          `https://api.github.com/users/${encodeURIComponent(targetUser.trim())}/repos?per_page=100&sort=updated`,
+          { headers }
+        );
         if (reposRes.ok) {
           const reposData = await reposRes.json();
           if (Array.isArray(reposData)) {
-            stars = reposData.reduce((acc, r) => acc + (r.stargazers_count || 0), 0);
+            calculatedStars = reposData.reduce(
+              (sum: number, r: any) => sum + (r.stargazers_count || 0),
+              0
+            );
+
+            // Sort repos: current project first, then by stars desc, then recently updated
+            fetchedRepos = reposData
+              .map((r: any) => ({
+                id: r.id,
+                name: r.name,
+                description: r.description,
+                language: r.language,
+                stars: r.stargazers_count || 0,
+                htmlUrl: r.html_url,
+                isCurrent:
+                  Boolean(currentRepoName) &&
+                  r.name.toLowerCase() === currentRepoName.toLowerCase(),
+              }))
+              .sort((a, b) => {
+                if (a.isCurrent) return -1;
+                if (b.isCurrent) return 1;
+                return b.stars - a.stars;
+              });
           }
         }
-
-        setProfile({
-          name: userData.name || initialProfile.name,
-          login: userData.login || initialProfile.login,
-          avatarUrl: userData.avatar_url || initialProfile.avatarUrl,
-          bio: userData.bio || initialProfile.bio,
-          publicRepos: userData.public_repos ?? initialProfile.publicRepos,
-          totalStars: stars,
-          followers: userData.followers ?? initialProfile.followers,
-          following: userData.following ?? initialProfile.following,
-          htmlUrl: userData.html_url || initialProfile.htmlUrl,
-        });
+      } catch (e) {
+        console.warn("Could not fetch repos list:", e);
       }
-    } catch {
-      // Offline fallback
+
+      const newProfile: GitHubProfile = {
+        name: userData.name || userData.login,
+        login: userData.login,
+        avatarUrl: userData.avatar_url,
+        bio: userData.bio || "Aucune biographie renseignée",
+        publicRepos: userData.public_repos ?? 0,
+        totalStars: calculatedStars,
+        followers: userData.followers ?? 0,
+        following: userData.following ?? 0,
+        htmlUrl: userData.html_url,
+      };
+
+      setProfile(newProfile);
+      setRepos(fetchedRepos);
+      localStorage.setItem(STORAGE_KEY_USER, targetUser.trim());
+      localStorage.setItem(STORAGE_KEY_CACHE, JSON.stringify(newProfile));
+    } catch (err: any) {
+      setError(err?.message || "Erreur de connexion à GitHub");
     } finally {
-      setTimeout(() => setIsRefreshing(false), 400);
+      setIsLoading(false);
+      setIsRefreshing(false);
     }
-  };
+  }, [currentRepoName]);
 
+  // Trigger fetch when username is established
   useEffect(() => {
-    fetchLiveData();
-  }, []);
+    if (username) {
+      fetchGitHubData(username);
+    }
+  }, [username, fetchGitHubData]);
 
-  const openGitHub = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    if ((window as any).__TAURI_INTERNALS__) {
-      import("@tauri-apps/plugin-shell").then(({ open }) => {
-        open(profile.htmlUrl).catch(() => window.open(profile.htmlUrl, "_blank"));
-      }).catch(() => {
-        window.open(profile.htmlUrl, "_blank");
-      });
-    } else {
-      window.open(profile.htmlUrl, "_blank");
+  // Submit new username
+  const handleSaveUsername = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (inputVal.trim()) {
+      setUsername(inputVal.trim());
+      setIsEditingUser(false);
     }
   };
+
+  const openGitHub = (url?: string) => {
+    const targetUrl = url || profile?.htmlUrl || `https://github.com/${username}`;
+    if ((window as any).__TAURI_INTERNALS__) {
+      import("@tauri-apps/plugin-shell")
+        .then(({ open }) => open(targetUrl))
+        .catch(() => window.open(targetUrl, "_blank"));
+    } else {
+      window.open(targetUrl, "_blank");
+    }
+  };
+
+  // Loading skeleton state
+  if (isLoading && !profile) {
+    return (
+      <div className="flex-1 flex flex-col justify-between bg-[#0d1117] border border-[#30363d] rounded-2xl p-3 text-white shadow-2xl select-none animate-pulse">
+        <div className="flex items-center justify-between pb-2 border-b border-[#21262d]">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-neutral-800" />
+            <div className="space-y-1">
+              <div className="w-24 h-3 rounded bg-neutral-800" />
+              <div className="w-16 h-2 rounded bg-neutral-800/60" />
+            </div>
+          </div>
+          <div className="w-16 h-5 rounded bg-neutral-800" />
+        </div>
+        <div className="grid grid-cols-3 gap-2 py-3">
+          <div className="h-12 rounded-xl bg-neutral-800/50" />
+          <div className="h-12 rounded-xl bg-neutral-800/50" />
+          <div className="h-12 rounded-xl bg-neutral-800/50" />
+        </div>
+        <div className="h-6 rounded-lg bg-neutral-800/40" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col justify-between bg-[#0d1117] border border-[#30363d] rounded-2xl p-3 text-white shadow-2xl select-none overflow-hidden relative">
       {/* Top Header Row */}
       <div className="flex items-center justify-between pb-1.5 border-b border-[#21262d]">
-        <div className="flex items-center gap-2">
-          {/* Avatar with status dot */}
-          <div className="relative">
+        <div className="flex items-center gap-2 flex-1 min-w-0 mr-2">
+          {/* Avatar with live status dot */}
+          <div className="relative flex-shrink-0">
             <img
-              src={profile.avatarUrl}
-              alt={profile.name}
-              className="w-8 h-8 rounded-full border border-[#30363d] object-cover"
+              src={profile?.avatarUrl || "https://github.com/ghost.png"}
+              alt={profile?.name || username}
+              className="w-8 h-8 rounded-full border border-[#30363d] object-cover bg-neutral-800"
               onError={(e) => {
-                // Fallback to github icon if offline
-                (e.target as HTMLElement).style.display = "none";
+                (e.target as HTMLImageElement).src = "https://github.com/ghost.png";
               }}
             />
             <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[#0d1117]" />
           </div>
 
-          <div className="flex flex-col">
-            <div className="flex items-center gap-1.5 leading-none">
-              <span className="font-bold text-sm text-neutral-100 tracking-tight">
-                {profile.name}
-              </span>
-              <span className="text-[11px] text-neutral-400 font-mono">
-                @{profile.login}
+          {/* Profile Name & Username or Edit Mode */}
+          {isEditingUser ? (
+            <form onSubmit={handleSaveUsername} className="flex items-center gap-1 flex-1">
+              <input
+                type="text"
+                value={inputVal}
+                onChange={(e) => setInputVal(e.target.value)}
+                placeholder="ex: torvalds, ar1st1d3"
+                autoFocus
+                className="w-full text-xs bg-[#161b22] border border-[#30363d] rounded px-2 py-0.5 text-white focus:outline-none focus:border-blue-500 font-mono"
+              />
+              <button
+                type="submit"
+                className="p-1 rounded bg-[#238636] hover:bg-[#2ea043] text-white"
+                title="Valider"
+              >
+                <Check size={11} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsEditingUser(false)}
+                className="p-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-400"
+                title="Annuler"
+              >
+                <X size={11} />
+              </button>
+            </form>
+          ) : (
+            <div className="flex flex-col truncate">
+              <div className="flex items-center gap-1.5 leading-none">
+                <span className="font-bold text-sm text-neutral-100 tracking-tight truncate">
+                  {profile?.name || username}
+                </span>
+                <button
+                  onClick={() => {
+                    setInputVal(username);
+                    setIsEditingUser(true);
+                  }}
+                  className="text-[11px] text-neutral-400 font-mono hover:text-blue-400 flex items-center gap-0.5 transition-colors cursor-pointer group"
+                  title="Changer de compte GitHub"
+                >
+                  <span>@{profile?.login || username}</span>
+                  <Edit2 size={9} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                </button>
+              </div>
+              <span className="text-[10px] text-neutral-400 truncate max-w-[200px]">
+                {profile?.bio || "Profil GitHub connecté"}
               </span>
             </div>
-            <span className="text-[10px] text-neutral-400 truncate max-w-[190px]">
-              {profile.bio}
-            </span>
-          </div>
+          )}
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-1.5">
+        {/* Action Controls */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           <button
             onClick={() => setActiveTab(activeTab === "overview" ? "repos" : "overview")}
             className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-[#21262d] hover:bg-[#30363d] text-neutral-300 transition-colors flex items-center gap-1 cursor-pointer"
@@ -167,17 +332,41 @@ export const GitHubCard: React.FC = () => {
             <span>{activeTab === "overview" ? "Dépôts" : "Stats"}</span>
           </button>
 
+          {/* GitHub Token / PAT Status Button */}
+          {token ? (
+            <button
+              onClick={() => setActiveNav("settings")}
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-500/40 text-[9px] text-emerald-300 font-mono transition-colors cursor-pointer"
+              title="Token GitHub PAT actif (5 000 req/h). Cliquez pour ouvrir les Paramètres."
+            >
+              <Key size={9} />
+              <span>PAT</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setActiveNav("settings")}
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[#21262d] hover:bg-[#30363d] text-[9px] text-neutral-400 hover:text-neutral-200 transition-colors cursor-pointer"
+              title="Ajouter un token GitHub dans les Paramètres pour débloquer 5 000 req/h"
+            >
+              <Key size={9} />
+              <span>Token</span>
+            </button>
+          )}
+
           <button
-            onClick={fetchLiveData}
+            onClick={() => fetchGitHubData(username)}
             disabled={isRefreshing}
             className="p-1 rounded-md text-neutral-400 hover:text-neutral-200 bg-[#21262d] hover:bg-[#30363d] transition-colors cursor-pointer"
-            title="Rafraîchir les informations GitHub"
+            title="Rafraîchir via l'API GitHub"
           >
-            <RefreshCw size={11} className={isRefreshing ? "animate-spin text-blue-400" : ""} />
+            <RefreshCw
+              size={11}
+              className={isRefreshing ? "animate-spin text-blue-400" : ""}
+            />
           </button>
 
           <button
-            onClick={openGitHub}
+            onClick={() => openGitHub()}
             className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-[#238636] hover:bg-[#2ea043] text-white shadow-sm transition-colors cursor-pointer"
             title="Ouvrir le profil GitHub"
           >
@@ -188,6 +377,35 @@ export const GitHubCard: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Error Banner */}
+      {error && (
+        <div className="flex items-center justify-between px-2.5 py-1 my-1 rounded-lg bg-red-950/60 border border-red-500/40 text-[11px] text-red-200">
+          <div className="flex items-center gap-1.5 truncate">
+            <AlertCircle size={12} className="text-red-400 flex-shrink-0" />
+            <span className="truncate">{error}</span>
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0 ml-1">
+            {error.includes("paramètres") && (
+              <button
+                onClick={() => setActiveNav("settings")}
+                className="text-[10px] text-emerald-300 hover:underline cursor-pointer"
+              >
+                Paramètres
+              </button>
+            )}
+            <button
+              onClick={() => {
+                setInputVal(username);
+                setIsEditingUser(true);
+              }}
+              className="text-[10px] text-blue-300 hover:underline cursor-pointer"
+            >
+              Changer
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
       {activeTab === "overview" ? (
@@ -201,7 +419,7 @@ export const GitHubCard: React.FC = () => {
               </div>
               <div className="flex flex-col leading-tight">
                 <span className="font-extrabold text-base font-mono text-white">
-                  {profile.publicRepos}
+                  {profile?.publicRepos ?? 0}
                 </span>
                 <span className="text-[10px] text-neutral-400 uppercase tracking-wider font-semibold">
                   Dépôts
@@ -216,7 +434,7 @@ export const GitHubCard: React.FC = () => {
               </div>
               <div className="flex flex-col leading-tight">
                 <span className="font-extrabold text-base font-mono text-amber-300">
-                  {profile.totalStars}
+                  {profile?.totalStars ?? 0}
                 </span>
                 <span className="text-[10px] text-neutral-400 uppercase tracking-wider font-semibold">
                   Étoiles
@@ -231,7 +449,7 @@ export const GitHubCard: React.FC = () => {
               </div>
               <div className="flex flex-col leading-tight">
                 <span className="font-extrabold text-base font-mono text-white">
-                  {profile.followers}
+                  {profile?.followers ?? 0}
                 </span>
                 <span className="text-[10px] text-neutral-400 uppercase tracking-wider font-semibold">
                   Abonnés
@@ -248,52 +466,79 @@ export const GitHubCard: React.FC = () => {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
               <span className="text-[11px] text-neutral-300 font-mono truncate">
-                Dépôt actif : <strong className="text-white">ar1st1d3/Bark</strong>
+                {currentRepoName ? (
+                  <>
+                    Dépôt local : <strong className="text-white">{currentRepoName}</strong>
+                  </>
+                ) : (
+                  <>
+                    API GitHub : <strong className="text-white">@{username}</strong>
+                  </>
+                )}
               </span>
             </div>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-medium">
-              TypeScript / Rust
-            </span>
+            <button
+              onClick={() => {
+                setInputVal(username);
+                setIsEditingUser(true);
+              }}
+              className="text-[10px] px-1.5 py-0.5 rounded bg-[#21262d] text-neutral-300 font-medium hover:text-white transition-colors cursor-pointer"
+            >
+              Changer user
+            </button>
           </div>
         </div>
       ) : (
-        /* Repositories List View */
-        <div className="flex flex-col gap-1.5 flex-1 pt-1.5 overflow-hidden">
-          {pinnedRepos.map((repo) => (
-            <div
-              key={repo.name}
-              className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-[#161b22] border border-[#30363d]/60 hover:border-[#30363d] transition-colors text-xs"
-            >
-              <div className="flex items-center gap-2 truncate pr-2">
-                <GitBranch size={13} className="text-neutral-400 flex-shrink-0" />
-                <div className="flex flex-col truncate">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-semibold text-neutral-200 text-[11px] truncate">
-                      {repo.name}
-                    </span>
-                    {repo.isCurrent && (
-                      <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">
-                        Actuel
+        /* Real Repositories List View from GitHub API */
+        <div className="flex flex-col gap-1.5 flex-1 pt-1.5 overflow-y-auto max-h-[140px] pr-1">
+          {repos.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-neutral-500 text-xs py-4">
+              <FolderGit2 size={20} className="mb-1 opacity-50" />
+              <span>Aucun dépôt public trouvé pour cet utilisateur</span>
+            </div>
+          ) : (
+            repos.slice(0, 10).map((repo) => (
+              <div
+                key={repo.id}
+                onClick={() => openGitHub(repo.htmlUrl)}
+                className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-[#161b22] border border-[#30363d]/60 hover:border-[#30363d] transition-colors text-xs cursor-pointer group"
+              >
+                <div className="flex items-center gap-2 truncate pr-2">
+                  <GitBranch size={13} className="text-neutral-400 flex-shrink-0 group-hover:text-blue-400" />
+                  <div className="flex flex-col truncate">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-neutral-200 text-[11px] truncate group-hover:text-white">
+                        {repo.name}
+                      </span>
+                      {repo.isCurrent && (
+                        <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">
+                          Actuel
+                        </span>
+                      )}
+                    </div>
+                    {repo.description && (
+                      <span className="text-[10px] text-neutral-400 truncate">
+                        {repo.description}
                       </span>
                     )}
                   </div>
-                  <span className="text-[10px] text-neutral-400 truncate">
-                    {repo.description}
-                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {repo.language && (
+                    <span className="text-[10px] text-neutral-400">{repo.language}</span>
+                  )}
+                  {repo.stars > 0 && (
+                    <span className="flex items-center gap-0.5 text-[10px] text-amber-300 font-mono">
+                      <Star size={10} className="fill-amber-400" />
+                      {repo.stars}
+                    </span>
+                  )}
+                  <ExternalLink size={10} className="text-neutral-500 group-hover:text-neutral-300" />
                 </div>
               </div>
-
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-[10px] text-neutral-400">{repo.language}</span>
-                {repo.stars > 0 && (
-                  <span className="flex items-center gap-0.5 text-[10px] text-amber-300 font-mono">
-                    <Star size={10} className="fill-amber-400" />
-                    {repo.stars}
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       )}
     </div>
