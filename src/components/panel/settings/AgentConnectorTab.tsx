@@ -341,22 +341,45 @@ export const AgentConnectorTab: React.FC = () => {
           )}
 
           {settings.antigravity.mode === "cli_pty" && (
-            <div className="pt-1">
-              <label className="block text-[10px] text-neutral-400 mb-0.5">
-                Commande / Binaire Antigravity CLI
-              </label>
-              <input
-                type="text"
-                value={settings.antigravity.cliPath}
-                onChange={(e) =>
-                  updateAntigravityConfig({ cliPath: e.target.value })
-                }
-                placeholder="agy"
-                className="w-full bg-black/70 border border-neutral-800 rounded px-2 py-1 text-xs font-mono text-neutral-200 focus:outline-none focus:border-blue-500"
-              />
-              <p className="text-[9px] text-neutral-500 mt-1">
-                Bark lance automatiquement cette commande dans un pseudo-terminal PTY.
-              </p>
+            <div className="pt-0.5 space-y-2">
+              <div>
+                <label className="block text-[10px] text-neutral-400 mb-0.5">
+                  Commande / Binaire Antigravity CLI
+                </label>
+                <input
+                  type="text"
+                  value={settings.antigravity.cliPath}
+                  onChange={(e) =>
+                    updateAntigravityConfig({ cliPath: e.target.value })
+                  }
+                  placeholder="agy"
+                  className="w-full bg-black/70 border border-neutral-800 rounded px-2 py-1 text-xs font-mono text-neutral-200 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* Notice & Install instructions */}
+              <div className="p-2 rounded-lg bg-neutral-900/80 border border-neutral-800 text-[10px] space-y-1.5">
+                <div className="flex items-center gap-1.5 text-blue-400 font-semibold">
+                  <Terminal size={12} />
+                  <span>Installation du CLI officiel (agy)</span>
+                </div>
+                <p className="text-[9px] text-neutral-400 leading-snug">
+                  Le binaire officiel <code className="text-amber-300 font-mono">agy</code> doit être installé sur votre système. Pour l'installer dans votre terminal :
+                </p>
+                <div className="flex items-center justify-between bg-black/80 p-1.5 rounded border border-neutral-800 font-mono text-[9px] text-neutral-300">
+                  <span className="truncate select-all">curl -fsSL https://antigravity.google/cli/install.sh | bash</span>
+                  <button
+                    type="button"
+                    onClick={() => navigator.clipboard.writeText("curl -fsSL https://antigravity.google/cli/install.sh | bash")}
+                    className="ml-2 text-blue-400 hover:text-blue-300 text-[8px] uppercase tracking-wider font-sans font-bold flex-shrink-0"
+                  >
+                    Copier
+                  </button>
+                </div>
+                <p className="text-[8.5px] text-neutral-500">
+                  💡 Lancez ensuite <code className="text-neutral-400 font-mono">agy</code> dans un terminal pour vous authentifier avec Google.
+                </p>
+              </div>
             </div>
           )}
 

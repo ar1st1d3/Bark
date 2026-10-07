@@ -52,6 +52,7 @@ interface AgentStoreState {
   setSocketConnected: (connected: boolean) => void;
   setAttachedFile: (file: AttachedFile | null) => void;
   sendChatMessage: (agent: AgentType, text: string) => Promise<void>;
+  clearChatHistory: (agent: AgentType) => void;
   submitApproval: (requestId: string, status: "approved" | "denied" | "always", choice?: any) => Promise<void>;
   handleSocketEvent: (event: SocketEventPayload) => void;
   appendOutput: (agent: AgentType, text: string) => void;
@@ -333,9 +334,31 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
 
   setAttachedFile: (file) => set({ attachedFile: file }),
 
+  clearChatHistory: (agent) => {
+    const defaultMsg =
+      agent === "antigravity"
+        ? "Bonjour ! Nouvelle conversation démarrée avec Google Gemini. Prêt pour vos consignes."
+        : "Bonjour ! Nouvelle conversation démarrée avec Hermes Agent.";
+    set((state) => ({
+      chatHistories: {
+        ...state.chatHistories,
+        [agent]: [
+          {
+            id: `welcome-${Date.now()}`,
+            sender: "agent",
+            text: defaultMsg,
+            timestamp: Date.now(),
+          },
+        ],
+      },
+    }));
+    pugAudio.playChime();
+  },
+
   sendChatMessage: async (agent, text) => {
     const file = get().attachedFile;
     const settings = get().settings;
+    const priorHistory = get().chatHistories[agent] || [];
     const userMsg: ChatMessage = {
       id: `usr-${Date.now()}`,
       sender: "user",
@@ -357,7 +380,7 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
       if (agent === "antigravity") {
         const agConfig = settings.antigravity;
         if (agConfig.mode === "gemini_api" && agConfig.apiKey?.trim()) {
-          const aiResponse = await callGeminiApi(text, agConfig);
+          const aiResponse = await callGeminiApi(text, agConfig, priorHistory);
           set((state) => ({
             isAgentThinking: false,
             chatHistories: {
@@ -377,15 +400,58 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
           return;
         } else if (agConfig.mode === "cli_pty" && (window as any).__TAURI_INTERNALS__) {
           const { invoke } = await import("@tauri-apps/api/core");
-          await invoke("spawn_agent_pty", {
-            sessionId: get().sessions.antigravity.id,
-            command: agConfig.cliPath || "agy",
-            args: ["--prompt", text],
-            cwd: null,
-            cols: 80,
-            rows: 24,
-          });
-          return;
+          const cmd = agConfig.cliPath || "agy";
+          const isInstalled = await invoke<boolean>("check_cli_command", { command: cmd }).catch(() => true);
+
+          if (!isInstalled) {
+            set((state) => ({
+              isAgentThinking: false,
+              chatHistories: {
+                ...state.chatHistories,
+                antigravity: [
+                  ...state.chatHistories.antigravity,
+                  {
+                    id: `bot-${Date.now()}`,
+                    sender: "agent",
+                    text: `⚠️ **Le CLI Antigravity (« ${cmd} ») n'est pas installé sur votre système.**\n\nPour installer le binaire officiel \`agy\` sur Linux :\n\`\`\`bash\ncurl -fsSL https://antigravity.google/cli/install.sh | bash\n\`\`\`\nUne fois l'installation terminée, tapez \`agy\` dans un terminal pour vous connecter avec votre compte Google.\n\n*(💡 Vous pouvez aussi basculer en mode « **Gemini API** » avec votre clé API ou « **Hook IPC** » dans les Paramètres ⚙️).*`,
+                    timestamp: Date.now(),
+                  },
+                ],
+              },
+            }));
+            pugAudio.playAlert();
+            return;
+          }
+
+          try {
+            await invoke("spawn_agent_pty", {
+              sessionId: get().sessions.antigravity.id,
+              command: cmd,
+              args: ["--prompt", text],
+              cwd: null,
+              cols: 80,
+              rows: 24,
+            });
+            return;
+          } catch (spawnErr: any) {
+            set((state) => ({
+              isAgentThinking: false,
+              chatHistories: {
+                ...state.chatHistories,
+                antigravity: [
+                  ...state.chatHistories.antigravity,
+                  {
+                    id: `bot-${Date.now()}`,
+                    sender: "agent",
+                    text: `⚠️ **Échec du lancement PTY (${cmd})** : ${spawnErr?.message || String(spawnErr)}\n\nPour installer le CLI Antigravity :\n\`\`\`bash\ncurl -fsSL https://antigravity.google/cli/install.sh | bash\n\`\`\``,
+                    timestamp: Date.now(),
+                  },
+                ],
+              },
+            }));
+            pugAudio.playAlert();
+            return;
+          }
         }
       } else if (agent === "hermes") {
         const hermesConfig = settings.hermes;
@@ -393,7 +459,7 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
           (hermesConfig.mode === "openrouter_api" && hermesConfig.apiKey?.trim()) ||
           hermesConfig.mode === "local_ollama"
         ) {
-          const aiResponse = await callHermesApi(text, hermesConfig);
+          const aiResponse = await callHermesApi(text, hermesConfig, priorHistory);
           set((state) => ({
             isAgentThinking: false,
             chatHistories: {
@@ -413,15 +479,58 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
           return;
         } else if (hermesConfig.mode === "cli_pty" && (window as any).__TAURI_INTERNALS__) {
           const { invoke } = await import("@tauri-apps/api/core");
-          await invoke("spawn_agent_pty", {
-            sessionId: get().sessions.hermes.id,
-            command: hermesConfig.cliPath || "hermes",
-            args: ["--prompt", text],
-            cwd: null,
-            cols: 80,
-            rows: 24,
-          });
-          return;
+          const cmd = hermesConfig.cliPath || "hermes";
+          const isInstalled = await invoke<boolean>("check_cli_command", { command: cmd }).catch(() => true);
+
+          if (!isInstalled) {
+            set((state) => ({
+              isAgentThinking: false,
+              chatHistories: {
+                ...state.chatHistories,
+                hermes: [
+                  ...state.chatHistories.hermes,
+                  {
+                    id: `bot-${Date.now()}`,
+                    sender: "agent",
+                    text: `⚠️ **Le CLI Hermes (« ${cmd} ») n'est pas installé sur votre système.**\n\nInstallez le CLI Hermes ou configurez une clé OpenRouter / Ollama dans les Paramètres ⚙️.`,
+                    timestamp: Date.now(),
+                  },
+                ],
+              },
+            }));
+            pugAudio.playAlert();
+            return;
+          }
+
+          try {
+            await invoke("spawn_agent_pty", {
+              sessionId: get().sessions.hermes.id,
+              command: cmd,
+              args: ["--prompt", text],
+              cwd: null,
+              cols: 80,
+              rows: 24,
+            });
+            return;
+          } catch (spawnErr: any) {
+            set((state) => ({
+              isAgentThinking: false,
+              chatHistories: {
+                ...state.chatHistories,
+                hermes: [
+                  ...state.chatHistories.hermes,
+                  {
+                    id: `bot-${Date.now()}`,
+                    sender: "agent",
+                    text: `⚠️ **Échec du lancement PTY (${cmd})** : ${spawnErr?.message || String(spawnErr)}`,
+                    timestamp: Date.now(),
+                  },
+                ],
+              },
+            }));
+            pugAudio.playAlert();
+            return;
+          }
         }
       }
 

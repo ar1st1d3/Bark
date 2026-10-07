@@ -98,6 +98,15 @@ fn pty_kill(state: State<'_, AppState>, session_id: String) -> Result<(), String
     state.pty_manager.kill(&session_id)
 }
 
+#[tauri::command]
+fn check_cli_command(command: String) -> Result<bool, String> {
+    let program = if cfg!(target_os = "windows") { "where" } else { "which" };
+    match std::process::Command::new(program).arg(&command).output() {
+        Ok(output) => Ok(output.status.success()),
+        Err(_) => Ok(false),
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let approvals: ApprovalMap = Arc::new(Mutex::new(HashMap::new()));
@@ -120,6 +129,7 @@ pub fn run() {
             pty_write,
             pty_resize,
             pty_kill,
+            check_cli_command,
         ])
         .setup(move |app| {
             let handle = app.handle().clone();

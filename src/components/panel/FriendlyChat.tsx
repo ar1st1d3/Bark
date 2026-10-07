@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useAgentStore } from "../../store/useAgentStore";
 import { PugCharacter } from "../mascot/PugCharacter";
-import { ArrowUp, Paperclip, X } from "lucide-react";
+import { ArrowUp, Paperclip, X, RotateCcw, Key } from "lucide-react";
 
 export const FriendlyChat: React.FC = () => {
   const {
@@ -13,6 +13,7 @@ export const FriendlyChat: React.FC = () => {
     attachedFile,
     setAttachedFile,
     sendChatMessage,
+    clearChatHistory,
     settings,
     setActiveNav,
   } = useAgentStore();
@@ -61,21 +62,46 @@ export const FriendlyChat: React.FC = () => {
           >
             <span className="font-mono text-neutral-400">{activeModelName}</span>
           </button>
+
+          {activeAgent === "antigravity" &&
+            settings.antigravity.mode === "gemini_api" &&
+            !settings.antigravity.apiKey.trim() && (
+              <button
+                onClick={() => setActiveNav("settings")}
+                className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-950/60 border border-amber-500/40 text-[10px] text-amber-300 hover:text-amber-200 transition-colors"
+                title="Saisissez votre clé API Google Gemini dans les paramètres"
+              >
+                <Key size={10} />
+                <span>Clé API requise</span>
+              </button>
+            )}
         </div>
 
-        {/* Attached file chip if any */}
-        {attachedFile && (
-          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-950/70 border border-blue-500/40 text-blue-300 text-[11px] font-mono">
-            <Paperclip size={11} />
-            <span className="truncate max-w-[160px]">{attachedFile.name}</span>
-            <button
-              onClick={() => setAttachedFile(null)}
-              className="hover:text-white ml-0.5"
-            >
-              <X size={11} />
-            </button>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {/* New Chat Button */}
+          <button
+            onClick={() => clearChatHistory(activeAgent)}
+            className="flex items-center gap-1 px-2 py-0.5 rounded bg-neutral-900/70 border border-neutral-800 hover:border-neutral-700 text-[10px] text-neutral-400 hover:text-neutral-200 transition-colors"
+            title="Effacer l'historique et démarrer une nouvelle conversation"
+          >
+            <RotateCcw size={10} />
+            <span>Nouveau</span>
+          </button>
+
+          {/* Attached file chip if any */}
+          {attachedFile && (
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-950/70 border border-blue-500/40 text-blue-300 text-[11px] font-mono">
+              <Paperclip size={11} />
+              <span className="truncate max-w-[130px]">{attachedFile.name}</span>
+              <button
+                onClick={() => setAttachedFile(null)}
+                className="hover:text-white ml-0.5"
+              >
+                <X size={11} />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Message History Area */}

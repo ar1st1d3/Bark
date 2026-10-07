@@ -1,7 +1,7 @@
 import React from "react";
 import { useAgentStore } from "../../store/useAgentStore";
 import { PugCharacter } from "../mascot/PugCharacter";
-import { Check, X, Zap, ShieldAlert, HelpCircle, Terminal, FileEdit } from "lucide-react";
+import { Check, X, Zap, ShieldAlert, HelpCircle, Terminal, FileEdit, MessageSquare } from "lucide-react";
 
 export const AgentCardLeft: React.FC = () => {
   const {
@@ -153,19 +153,30 @@ export const AgentCardLeft: React.FC = () => {
           </span>
         </div>
 
-        <div
-          onClick={() => setActiveNav("code")}
-          className="flex items-baseline gap-1.5 text-xl font-extrabold tracking-tight text-white mb-2 font-mono cursor-pointer hover:opacity-85 transition-opacity"
-          title="Inspecter le code et les diffs"
-        >
-          <span>
-            {totalAdditions > 0 || totalDeletions > 0
-              ? `+${totalAdditions} -${totalDeletions}`
-              : `${currentSession.stepCount}`}
-          </span>
-          <span className="text-[10px] font-semibold text-neutral-400 tracking-normal">
-            {totalAdditions > 0 ? "DIFFS" : "ÉTAPES"}
-          </span>
+        <div className="flex items-center justify-between mb-2">
+          <div
+            onClick={() => setActiveNav("code")}
+            className="flex items-baseline gap-1.5 text-xl font-extrabold tracking-tight text-white font-mono cursor-pointer hover:opacity-85 transition-opacity"
+            title="Inspecter le code et les diffs"
+          >
+            <span>
+              {totalAdditions > 0 || totalDeletions > 0
+                ? `+${totalAdditions} -${totalDeletions}`
+                : `${currentSession.stepCount}`}
+            </span>
+            <span className="text-[10px] font-semibold text-neutral-400 tracking-normal">
+              {totalAdditions > 0 ? "DIFFS" : "ÉTAPES"}
+            </span>
+          </div>
+
+          <button
+            onClick={() => setActiveNav("chat")}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600/90 hover:bg-blue-600 text-white text-[11px] font-semibold shadow-sm transition-all cursor-pointer"
+            title="Lancer une conversation avec l'agent"
+          >
+            <MessageSquare size={11} />
+            <span>Discuter</span>
+          </button>
         </div>
 
         <div className="space-y-1 text-xs">
