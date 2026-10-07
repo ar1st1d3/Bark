@@ -158,10 +158,10 @@ export const ToolsTab: React.FC = () => {
   const hasConfiguredToken = Boolean(settings.github?.token?.trim());
 
   return (
-    <div className="grid grid-cols-2 gap-3 h-[375px] overflow-y-auto pr-1 select-none text-xs">
+    <div className="grid grid-cols-2 gap-3 h-full select-none text-xs">
       {/* --- Left Card: GitHub PAT Token --- */}
-      <div className="flex flex-col justify-between bg-[#111116] border border-[#22222a] hover:border-[#30363d] rounded-xl p-3 text-white shadow-sm transition-colors">
-        <div className="space-y-2">
+      <div className="flex flex-col justify-between h-full bg-[#111116] border border-[#22222a] hover:border-[#30363d] rounded-xl p-3 text-white shadow-sm transition-colors overflow-hidden">
+        <div className="space-y-2 overflow-y-auto pr-1 flex-1 min-h-0">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-neutral-800/60 pb-2">
             <div className="flex items-center gap-2">
@@ -257,7 +257,7 @@ export const ToolsTab: React.FC = () => {
         </div>
 
         {/* Footer Link */}
-        <div className="pt-2 border-t border-neutral-800/50 mt-2 flex items-center justify-between">
+        <div className="pt-2 border-t border-neutral-800/50 mt-2 flex items-center justify-between shrink-0">
           <span className="text-[10px] text-neutral-500 font-mono">Scopes : repo, read:user</span>
           <button
             onClick={handleOpenTokenGen}
@@ -270,8 +270,8 @@ export const ToolsTab: React.FC = () => {
       </div>
 
       {/* --- Right Card: VS Code Bridge --- */}
-      <div className="flex flex-col justify-between bg-[#111116] border border-[#22222a] hover:border-[#007acc]/50 rounded-xl p-3 text-white shadow-sm transition-colors">
-        <div className="space-y-2">
+      <div className="flex flex-col justify-between h-full bg-[#111116] border border-[#22222a] hover:border-[#007acc]/50 rounded-xl p-3 text-white shadow-sm transition-colors overflow-hidden">
+        <div className="space-y-2 overflow-y-auto pr-1 flex-1 min-h-0">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-neutral-800/60 pb-2">
             <div className="flex items-center gap-2">
@@ -327,7 +327,7 @@ export const ToolsTab: React.FC = () => {
         </div>
 
         {/* Action Buttons */}
-        <div className="pt-2 border-t border-neutral-800/50 mt-2 flex items-center gap-1.5">
+        <div className="pt-2 border-t border-neutral-800/50 mt-2 flex items-center gap-1.5 shrink-0">
           <button
             onClick={handleScanVSCode}
             disabled={isScanningVs}

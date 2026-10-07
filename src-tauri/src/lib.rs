@@ -224,6 +224,60 @@ fn resolve_cli_command(command: String) -> Result<String, String> {
     Ok(resolve_cli_path(&command))
 }
 
+#[tauri::command]
+async fn execute_cli_prompt(
+    command: String,
+    prompt: String,
+    cwd: Option<String>,
+) -> Result<String, String> {
+    let resolved = resolve_cli_path(&command);
+    let mut cmd = tokio::process::Command::new(&resolved);
+
+    // Antigravity CLI uses -p for non-interactive print mode
+    if resolved.ends_with("agy") || resolved.ends_with("agy.exe") {
+        cmd.arg("-p").arg(&prompt);
+    } else {
+        cmd.arg("--prompt").arg(&prompt);
+    }
+
+    if let Some(c) = cwd {
+        cmd.current_dir(c);
+    }
+    if let Ok(path) = std::env::var("PATH") {
+        cmd.env("PATH", path);
+    }
+    if let Ok(home) = std::env::var("HOME") {
+        cmd.env("HOME", home);
+    }
+    cmd.env("TERM", "xterm-256color");
+
+    let output = cmd
+        .output()
+        .await
+        .map_err(|e| format!("Failed to execute {}: {}", resolved, e))?;
+
+    if output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if stdout.is_empty() {
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            if !stderr.is_empty() {
+                return Ok(stderr);
+            }
+        }
+        Ok(stdout)
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        Err(if !stderr.is_empty() {
+            stderr
+        } else if !stdout.is_empty() {
+            stdout
+        } else {
+            format!("Process exited with status {}", output.status)
+        })
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     ensure_user_path_env();
@@ -249,6 +303,7 @@ pub fn run() {
             pty_kill,
             check_cli_command,
             resolve_cli_command,
+            execute_cli_prompt,
             get_vscode_info,
             get_git_info,
         ])

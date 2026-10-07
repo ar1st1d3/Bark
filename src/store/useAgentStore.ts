@@ -431,16 +431,12 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
           }
 
           try {
-            await invoke("spawn_agent_pty", {
-              sessionId: get().sessions.antigravity.id,
+            const responseText = await invoke<string>("execute_cli_prompt", {
               command: cmd,
-              args: ["--prompt", text],
+              prompt: text,
               cwd: null,
-              cols: 80,
-              rows: 24,
             });
-            return;
-          } catch (spawnErr: any) {
+
             set((state) => ({
               isAgentThinking: false,
               chatHistories: {
@@ -450,7 +446,25 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
                   {
                     id: `bot-${Date.now()}`,
                     sender: "agent",
-                    text: `⚠️ **Échec du lancement PTY (${cmd})** : ${spawnErr?.message || String(spawnErr)}\n\nPour installer le CLI Antigravity :\n\`\`\`bash\ncurl -fsSL https://antigravity.google/cli/install.sh | bash\n\`\`\``,
+                    text: responseText || "(Aucune réponse textuelle reçue du CLI agy)",
+                    timestamp: Date.now(),
+                  },
+                ],
+              },
+            }));
+            pugAudio.playChime();
+            return;
+          } catch (cliErr: any) {
+            set((state) => ({
+              isAgentThinking: false,
+              chatHistories: {
+                ...state.chatHistories,
+                antigravity: [
+                  ...state.chatHistories.antigravity,
+                  {
+                    id: `bot-${Date.now()}`,
+                    sender: "agent",
+                    text: `⚠️ **Erreur CLI Antigravity** : ${cliErr?.message || String(cliErr)}`,
                     timestamp: Date.now(),
                   },
                 ],
@@ -510,16 +524,12 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
           }
 
           try {
-            await invoke("spawn_agent_pty", {
-              sessionId: get().sessions.hermes.id,
+            const responseText = await invoke<string>("execute_cli_prompt", {
               command: cmd,
-              args: ["--prompt", text],
+              prompt: text,
               cwd: null,
-              cols: 80,
-              rows: 24,
             });
-            return;
-          } catch (spawnErr: any) {
+
             set((state) => ({
               isAgentThinking: false,
               chatHistories: {
@@ -529,7 +539,25 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
                   {
                     id: `bot-${Date.now()}`,
                     sender: "agent",
-                    text: `⚠️ **Échec du lancement PTY (${cmd})** : ${spawnErr?.message || String(spawnErr)}`,
+                    text: responseText || "(Aucune réponse textuelle reçue de Hermes)",
+                    timestamp: Date.now(),
+                  },
+                ],
+              },
+            }));
+            pugAudio.playChime();
+            return;
+          } catch (cliErr: any) {
+            set((state) => ({
+              isAgentThinking: false,
+              chatHistories: {
+                ...state.chatHistories,
+                hermes: [
+                  ...state.chatHistories.hermes,
+                  {
+                    id: `bot-${Date.now()}`,
+                    sender: "agent",
+                    text: `⚠️ **Erreur CLI Hermes** : ${cliErr?.message || String(cliErr)}`,
                     timestamp: Date.now(),
                   },
                 ],

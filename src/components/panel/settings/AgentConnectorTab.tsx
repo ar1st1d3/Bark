@@ -114,10 +114,10 @@ export const AgentConnectorTab: React.FC = () => {
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 h-[375px] overflow-y-auto pr-1 select-none">
+    <div className="grid grid-cols-2 gap-3 h-full select-none">
       {/* --- Antigravity Card --- */}
-      <div className="flex flex-col justify-between bg-[#111116] border border-[#22222a] rounded-xl p-3.5 text-white shadow-sm">
-        <div className="space-y-2.5">
+      <div className="flex flex-col justify-between h-full bg-[#111116] border border-[#22222a] rounded-xl p-3 text-white shadow-sm overflow-hidden">
+        <div className="space-y-2 overflow-y-auto pr-1 flex-1 min-h-0">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-neutral-800/60 pb-2">
             <div className="flex items-center gap-2">
@@ -410,7 +410,7 @@ export const AgentConnectorTab: React.FC = () => {
         </div>
 
         {/* Test Footer */}
-        <div className="pt-2 border-t border-neutral-800/50 mt-2 flex items-center justify-between">
+        <div className="pt-2 border-t border-neutral-800/50 mt-2 flex items-center justify-between shrink-0">
           <button
             onClick={handleTestAntigravity}
             disabled={testingAg}
@@ -443,8 +443,8 @@ export const AgentConnectorTab: React.FC = () => {
       </div>
 
       {/* --- Hermes Agent Card --- */}
-      <div className="flex flex-col justify-between bg-[#111116] border border-[#22222a] rounded-xl p-3.5 text-white shadow-sm">
-        <div className="space-y-2.5">
+      <div className="flex flex-col justify-between h-full bg-[#111116] border border-[#22222a] rounded-xl p-3 text-white shadow-sm overflow-hidden">
+        <div className="space-y-2 overflow-y-auto pr-1 flex-1 min-h-0">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-neutral-800/60 pb-2">
             <div className="flex items-center gap-2">
@@ -654,7 +654,7 @@ export const AgentConnectorTab: React.FC = () => {
         </div>
 
         {/* Test Footer */}
-        <div className="pt-2 border-t border-neutral-800/50 mt-2 flex items-center justify-between">
+        <div className="pt-2 border-t border-neutral-800/50 mt-2 flex items-center justify-between shrink-0">
           <button
             onClick={handleTestHermes}
             disabled={testingHermes}

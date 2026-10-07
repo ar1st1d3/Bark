@@ -26,10 +26,10 @@ export const GeneralTab: React.FC = () => {
   };
 
   return (
-    <div className="grid grid-cols-2 gap-3 h-[375px] overflow-y-auto pr-1 select-none text-xs">
+    <div className="grid grid-cols-2 gap-3 h-full select-none text-xs">
       {/* Left: Audio & Companion SFX Card */}
-      <div className="flex flex-col justify-between bg-[#111116] border border-[#22222a] rounded-xl p-3.5 text-white shadow-sm">
-        <div className="space-y-3">
+      <div className="flex flex-col justify-between h-full bg-[#111116] border border-[#22222a] rounded-xl p-3.5 text-white shadow-sm overflow-hidden">
+        <div className="space-y-3 overflow-y-auto pr-1 flex-1 min-h-0">
           <div className="flex items-center justify-between border-b border-neutral-800/60 pb-2">
             <div className="flex items-center gap-1.5 font-bold text-neutral-200">
               <Music size={14} className="text-purple-400" />
@@ -82,7 +82,7 @@ export const GeneralTab: React.FC = () => {
         </div>
 
         {/* SFX test buttons */}
-        <div className="pt-2 border-t border-neutral-800/50 mt-2 flex items-center gap-2">
+        <div className="pt-2 border-t border-neutral-800/50 mt-2 flex items-center gap-2 shrink-0">
           <button
             onClick={handleTestBark}
             className="flex-1 py-1.5 px-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-[10px] font-semibold transition-colors cursor-pointer"
@@ -99,8 +99,8 @@ export const GeneralTab: React.FC = () => {
       </div>
 
       {/* Right: Notch Window Behavior */}
-      <div className="flex flex-col justify-between bg-[#111116] border border-[#22222a] rounded-xl p-3.5 text-white shadow-sm">
-        <div className="space-y-3">
+      <div className="flex flex-col justify-between h-full bg-[#111116] border border-[#22222a] rounded-xl p-3.5 text-white shadow-sm overflow-hidden">
+        <div className="space-y-3 overflow-y-auto pr-1 flex-1 min-h-0">
           <div className="flex items-center justify-between border-b border-neutral-800/60 pb-2">
             <div className="flex items-center gap-1.5 font-bold text-neutral-200">
               <Monitor size={14} className="text-blue-400" />
@@ -131,7 +131,7 @@ export const GeneralTab: React.FC = () => {
           </div>
         </div>
 
-        <div className="pt-2 border-t border-neutral-800/50 mt-2 text-right">
+        <div className="pt-2 border-t border-neutral-800/50 mt-2 text-right shrink-0">
           <span className="text-[10px] text-neutral-500 font-mono">
             Bark v0.1.0 • Control Hub
           </span>

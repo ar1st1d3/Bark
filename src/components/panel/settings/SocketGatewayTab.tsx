@@ -39,10 +39,10 @@ export const SocketGatewayTab: React.FC = () => {
   };
 
   return (
-    <div className="grid grid-cols-2 gap-3 h-[375px] overflow-y-auto pr-1 select-none text-xs">
+    <div className="grid grid-cols-2 gap-3 h-full select-none text-xs">
       {/* Left: Socket State & Hook Bridge */}
-      <div className="flex flex-col justify-between bg-[#111116] border border-[#22222a] rounded-xl p-3 text-white shadow-sm">
-        <div className="space-y-2">
+      <div className="flex flex-col justify-between h-full bg-[#111116] border border-[#22222a] rounded-xl p-3 text-white shadow-sm overflow-hidden">
+        <div className="space-y-2 overflow-y-auto pr-1 flex-1 min-h-0">
           {/* Socket Status Badge */}
           <div className="flex items-center justify-between border-b border-neutral-800/60 pb-2">
             <div className="flex items-center gap-2">
@@ -78,7 +78,7 @@ export const SocketGatewayTab: React.FC = () => {
           </div>
         </div>
 
-        <div className="pt-2 border-t border-neutral-800/50 mt-2 flex items-center gap-2">
+        <div className="pt-2 border-t border-neutral-800/50 mt-2 flex items-center gap-2 shrink-0">
           <button
             onClick={handleCopyHook}
             className="flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-[10px] font-semibold transition-colors"
@@ -98,8 +98,8 @@ export const SocketGatewayTab: React.FC = () => {
       </div>
 
       {/* Right: Quick CLI Bridge & Diagnostics */}
-      <div className="flex flex-col justify-between bg-[#111116] border border-[#22222a] rounded-xl p-3 text-white shadow-sm">
-        <div className="space-y-2">
+      <div className="flex flex-col justify-between h-full bg-[#111116] border border-[#22222a] rounded-xl p-3 text-white shadow-sm overflow-hidden">
+        <div className="space-y-2 overflow-y-auto pr-1 flex-1 min-h-0">
           <div className="flex items-center justify-between border-b border-neutral-800/60 pb-2">
             <div className="flex items-center gap-1.5 font-bold text-neutral-200">
               <Terminal size={14} className="text-amber-400" />
@@ -126,7 +126,7 @@ export const SocketGatewayTab: React.FC = () => {
           )}
         </div>
 
-        <div className="pt-2 border-t border-neutral-800/50 mt-2 flex items-center justify-between">
+        <div className="pt-2 border-t border-neutral-800/50 mt-2 flex items-center justify-between shrink-0">
           <button
             onClick={handleCopyScript}
             className="flex items-center gap-1.5 py-1 px-2.5 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-[10px] font-semibold transition-colors"
